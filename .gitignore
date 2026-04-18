@@ -1,0 +1,9 @@
+.env
+.env.*
+*.raw.json
+generated-image-*.png
+generated-image-*.jpg
+generated-image-*.jpeg
+generated-image-*.webp
+out/
+bench/
