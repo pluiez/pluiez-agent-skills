@@ -1,5 +1,7 @@
 # pluiez-agent-skills
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 Personal agent skills and reusable workflows.
 
 This repository is intentionally runtime-neutral. Different agents and editors load skills in different ways, so this repo only provides the skill folders and their bundled resources.
