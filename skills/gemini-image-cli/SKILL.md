@@ -15,7 +15,7 @@ Use `./scripts/gemini-image.sh` for Gemini native image generation. Prefer this 
 4. Use `gemini-2.5-flash-image` when latency matters more than latest image quality.
 5. Use `gemini-3-pro-image-preview` when the user needs stronger instruction following, text rendering, or professional-quality output.
 6. Confirm before multi-model batches, many retries, or other repeated calls that may consume extra quota.
-7. Read `references/behavior.md` only when explaining provider/security tradeoffs, choosing non-default models, troubleshooting slow or failed requests, or modifying the CLI.
+7. Read `references/behavior.md` only when explaining provider/security tradeoffs, choosing non-default models, configuring a local Gemini-compatible proxy, troubleshooting slow or failed requests, or modifying the CLI.
 
 ## Common Commands
 
