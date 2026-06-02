@@ -29,6 +29,14 @@ Each skill lives under `skills/<skill-name>/` and contains:
 - Environment variables are used for secrets and endpoint configuration. Default values must be safe to use in local-only scenarios.
 - For security-sensitive skills, document the security model and key isolation tradeoffs explicitly.
 
+## conventional-commits Skill
+
+Pure-documentation skill (no `scripts/`, no `references/`). Spec reference for writing or amending git commit messages in this repo.
+
+Format: `<type>[(scope)][!]: <description>`. Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Use `!` or a `BREAKING CHANGE:` footer for breaking changes.
+
+House rule: do NOT append `Co-Authored-By:` or other AI/tool-attribution trailers unless the user explicitly asks.
+
 ## gemini-image-cli Skill
 
 The bundled script requires `curl`, `jq`, and `base64`.

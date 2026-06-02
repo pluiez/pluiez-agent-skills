@@ -10,6 +10,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 
 | Skill | Path | Description |
 | --- | --- | --- |
+| Conventional Commits | `skills/conventional-commits` | Conventional Commits 1.0.0 reference for writing or amending git commit messages. |
 | Gemini Image CLI | `skills/gemini-image-cli` | Generate and edit images through Gemini-compatible endpoints with a bundled Bash CLI. |
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 
