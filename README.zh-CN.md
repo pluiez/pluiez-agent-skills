@@ -11,6 +11,7 @@
 | Skill | 路径 | 说明 |
 | --- | --- | --- |
 | Gemini Image CLI | `skills/gemini-image-cli` | 通过 Gemini-compatible endpoint 生成和编辑图像，内置一个 Bash CLI。 |
+| GitHub Proxy | `skills/github-proxy` | 当 github.com 超时、连接被拒或返回空响应时，将 GitHub URL 通过 `gh-proxy.org` 转发。 |
 
 ## Gemini Image CLI
 

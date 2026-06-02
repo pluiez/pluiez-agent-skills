@@ -11,6 +11,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | Skill | Path | Description |
 | --- | --- | --- |
 | Gemini Image CLI | `skills/gemini-image-cli` | Generate and edit images through Gemini-compatible endpoints with a bundled Bash CLI. |
+| GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 
 ## Gemini Image CLI
 

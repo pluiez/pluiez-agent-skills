@@ -19,6 +19,7 @@ Each skill lives under `skills/<skill-name>/` and contains:
 2. Add any bundled scripts to `skills/<skill-name>/scripts/`.
 3. Add supplementary reference docs to `skills/<skill-name>/references/` if needed.
 4. Add an entry to the skills table in `README.md` and `README.zh-CN.md`.
+5. Add a `## <skill-name> Skill` section to this CLAUDE.md summarizing key commands, dependencies, env vars, and when to read on-demand references.
 
 ## Skill Authoring Conventions
 
@@ -48,3 +49,23 @@ Environment variables:
 Provider auto-selection: checks local endpoint first; falls back to Google if unreachable. Use `--provider local` or `--provider google` to force one.
 
 Read `skills/gemini-image-cli/references/behavior.md` only when choosing non-default models, configuring the local proxy, troubleshooting failures, or modifying the CLI.
+
+## github-proxy Skill
+
+Pure-documentation skill (no `scripts/`, no `references/`). Apply when github.com, `raw.githubusercontent.com`, or `api.github.com` are timing out, refusing connections, or returning empty responses while working in this repo.
+
+Core pattern — prefix any GitHub URL with `https://gh-proxy.org/`:
+
+```sh
+git clone https://gh-proxy.org/https://github.com/<owner>/<repo>.git
+```
+
+Persistent git rewrite (undo with `--unset`):
+
+```sh
+git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
+```
+
+For `curl ... | bash` install scripts, download → `sed`-rewrite embedded `github.com` / `api.github.com` / `raw.githubusercontent.com` URLs → run. Outer-URL proxying alone leaves the script's internal calls hitting GitHub directly.
+
+Limitations: SSH remotes, `gh` CLI, and git-lfs aren't proxyable; PATs may be stripped by the proxy. Mirrors `v4.gh-proxy.org` / `v6.gh-proxy.org` / `cdn.gh-proxy.org` use the same prefix pattern.
