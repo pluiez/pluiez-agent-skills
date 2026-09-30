@@ -13,6 +13,7 @@
 | Conventional Commits | `skills/conventional-commits` | 编写或修改 git commit message 时遵循的 Conventional Commits 1.0.0 规范参考。 |
 | Gemini Image CLI | `skills/gemini-image-cli` | 通过 Gemini-compatible endpoint 生成和编辑图像，内置一个 Bash CLI。 |
 | GitHub Proxy | `skills/github-proxy` | 当 github.com 超时、连接被拒或返回空响应时，将 GitHub URL 通过 `gh-proxy.org` 转发。 |
+| PDF Region Crop | `skills/pdf-region-crop` | 渲染 PDF 页面，并从原页面截取任意矩形区域（图、表、正文片段、标题、公式）为高清 PNG，内置一个 Python CLI。 |
 
 ## Gemini Image CLI
 
@@ -35,6 +36,23 @@ skills/gemini-image-cli/scripts/gemini-image.sh --help
 - 自动 provider 选择：优先本地 proxy，失败后 fallback 到 Google。
 - 根据返回 MIME 类型保存 `.png`、`.jpg` 或 `.webp`。
 - curl 日志中 mask key，并隐藏输入图片 base64。
+
+## PDF Region Crop
+
+PDF Region Crop skill 包含一个自包含 Python 脚本，依赖 PyMuPDF（`pip install pymupdf`）：
+
+```bash
+python skills/pdf-region-crop/scripts/pdf_regions.py prepare paper.pdf
+python skills/pdf-region-crop/scripts/pdf_regions.py crop paper.pdf --regions regions.json --out assets
+```
+
+查看完整 CLI 帮助：
+
+```bash
+python skills/pdf-region-crop/scripts/pdf_regions.py --help
+```
+
+区域一律用归一化坐标 `[fx0, fy0, fx1, fy1]`（0..1，原点在页面左上角）表示，与查看时的缩放倍率无关，旋转页面同样适用。
 
 ## 安全
 

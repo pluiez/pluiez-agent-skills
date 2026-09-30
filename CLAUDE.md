@@ -77,3 +77,20 @@ git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "ht
 For `curl ... | bash` install scripts, download → `sed`-rewrite embedded `github.com` / `api.github.com` / `raw.githubusercontent.com` URLs → run. Outer-URL proxying alone leaves the script's internal calls hitting GitHub directly.
 
 Limitations: SSH remotes, `gh` CLI, and git-lfs aren't proxyable; PATs may be stripped by the proxy. Mirrors `v4.gh-proxy.org` / `v6.gh-proxy.org` / `cdn.gh-proxy.org` use the same prefix pattern.
+
+## pdf-region-crop Skill
+
+The bundled script requires Python 3.9+ and PyMuPDF (`pip install pymupdf`). No env vars, no `references/`.
+
+```bash
+# 1. render pages (+ page text, draft boxes) into a new temp dir, e.g. /tmp/pdf-regions-XXXX
+python skills/pdf-region-crop/scripts/pdf_regions.py prepare paper.pdf [--pages 1-12] [--work-dir DIR]
+
+# zoom into part of a page to check a boundary
+python skills/pdf-region-crop/scripts/pdf_regions.py render paper.pdf 6 --rect 0.1 0.05 0.9 0.3 --scale 4
+
+# 3. crop every region in regions.json into --out, plus manifest.json there
+python skills/pdf-region-crop/scripts/pdf_regions.py crop paper.pdf --regions regions.json --out assets
+```
+
+Coordinates are normalised `[fx0, fy0, fx1, fy1]` in 0..1 of the page as rendered (rotation applied, origin top-left, y down). This is the only geometry mode, and the viewing zoom never changes it. The default crop scale is 3. Exit status: 0 = ok, 1 = some regions failed, 2 = bad input. The manifest stores the PDF file name and sha256, never machine paths.

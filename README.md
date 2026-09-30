@@ -13,6 +13,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | Conventional Commits | `skills/conventional-commits` | Conventional Commits 1.0.0 reference for writing or amending git commit messages. |
 | Gemini Image CLI | `skills/gemini-image-cli` | Generate and edit images through Gemini-compatible endpoints with a bundled Bash CLI. |
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
+| PDF Region Crop | `skills/pdf-region-crop` | Render PDF pages and capture arbitrary rectangular regions (figures, tables, text fragments, titles, formulas) as high-resolution PNGs cut from the original page, with a bundled Python CLI. |
 
 ## Gemini Image CLI
 
@@ -35,6 +36,23 @@ The CLI supports:
 - Automatic provider selection: local first, Google fallback.
 - MIME-aware image output using `.png`, `.jpg`, or `.webp`.
 - Masked key logging and redacted input-image base64 in curl logs.
+
+## PDF Region Crop
+
+The PDF Region Crop skill includes a self-contained Python script that requires PyMuPDF (`pip install pymupdf`):
+
+```bash
+python skills/pdf-region-crop/scripts/pdf_regions.py prepare paper.pdf
+python skills/pdf-region-crop/scripts/pdf_regions.py crop paper.pdf --regions regions.json --out assets
+```
+
+Print CLI help:
+
+```bash
+python skills/pdf-region-crop/scripts/pdf_regions.py --help
+```
+
+Regions are always normalised boxes `[fx0, fy0, fx1, fy1]` (0..1, origin at the top-left of the page as rendered). They are independent of the viewing zoom and also work on rotated pages.
 
 ## Security
 
