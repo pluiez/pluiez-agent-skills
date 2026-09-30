@@ -14,6 +14,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | Gemini Image CLI | `skills/gemini-image-cli` | Generate and edit images through Gemini-compatible endpoints with a bundled Bash CLI. |
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 | PDF Region Crop | `skills/pdf-region-crop` | Render PDF pages and capture arbitrary rectangular regions (figures, tables, text fragments, titles, formulas) as high-resolution PNGs cut from the original page, with a bundled Python CLI. |
+| Paper zh Translation | `skills/paper-zh-translation` | Translate an academic paper PDF into a complete Simplified Chinese Markdown translation with embedded figures and tables; relies on any skill that provides PDF region capture. |
 
 ## Gemini Image CLI
 
@@ -53,6 +54,10 @@ python skills/pdf-region-crop/scripts/pdf_regions.py --help
 ```
 
 Regions are always normalised boxes `[fx0, fy0, fx1, fy1]` (0..1, origin at the top-left of the page as rendered). They are independent of the viewing zoom and also work on rotated pages.
+
+## Paper zh Translation
+
+Pure-documentation skill, with no scripts. It does not name a cropping skill. Instead, it states the capability it needs: render pages, crop given regions from the original PDF, let the caller choose the output directory and file names, and reject out-of-page boxes. The agent then picks any available skill that provides that capability. If none does, the skill stops and tells the user instead of improvising.
 
 ## Security
 

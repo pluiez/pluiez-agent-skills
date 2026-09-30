@@ -94,3 +94,11 @@ python skills/pdf-region-crop/scripts/pdf_regions.py crop paper.pdf --regions re
 ```
 
 Coordinates are normalised `[fx0, fy0, fx1, fy1]` in 0..1 of the page as rendered (rotation applied, origin top-left, y down). This is the only geometry mode, and the viewing zoom never changes it. The default crop scale is 3. Exit status: 0 = ok, 1 = some regions failed, 2 = bad input. The manifest stores the PDF file name and sha256, never machine paths.
+
+## paper-zh-translation Skill
+
+Pure-documentation skill written in Chinese, with no `scripts/`. It depends on a PDF region-capture capability, described by what it must do, never by skill name, so any equivalent skill can satisfy it. If no such skill is available, it must stop and tell the user. It must never write ad-hoc cropping code or fall back to full-page screenshots.
+
+Output is a package next to the PDF: `<arXiv ID+version> <short name>/`, or `<short name>/` when no arXiv ID can be confirmed from the PDF. The package contains `<PDF stem>.zh-CN.md` and `assets/`. Non-image files written into `assets/` by the capture tool are allowed; the skill never names them.
+
+Read `skills/paper-zh-translation/references/revising.md` only when the target package already exists, when revising or correcting an existing translation, or when translating a different version of the same paper.
