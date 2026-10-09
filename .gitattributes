@@ -1,0 +1,8 @@
+# Normalize all text files to LF in the repository and in the working tree.
+# This repo is checked out on both Windows (via /mnt/c) and Linux/WSL, so
+# without this every Windows editor save rewrites the whole file as CRLF.
+* text=auto eol=lf
+
+# Bundled shell scripts must be LF: a CRLF shebang breaks execution on Linux
+# (`bad interpreter: /usr/bin/env bash^M`).
+*.sh text eol=lf
