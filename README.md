@@ -15,6 +15,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 | PDF Region Crop | `skills/pdf-region-crop` | Render PDF pages and capture arbitrary rectangular regions (figures, tables, text fragments, titles, formulas) as high-resolution PNGs cut from the original page, with a bundled Python CLI. |
 | Paper zh Translation | `skills/paper-zh-translation` | Translate an academic paper PDF into a complete Simplified Chinese Markdown translation with embedded figures and tables; relies on any skill that provides PDF region capture. |
+| Verify with Citations | `skills/verify-with-citations` | Citation format for verification work: verbatim quote, author/organization attribution, Markdown-linked title with section path, and a source table past 3 sources. |
 
 ## Gemini Image CLI
 
@@ -58,6 +59,12 @@ Regions are always normalised boxes `[fx0, fy0, fx1, fy1]` (0..1, origin at the 
 ## Paper zh Translation
 
 Pure-documentation skill, with no scripts. It does not name a cropping skill. Instead, it states the capability it needs: render pages, crop given regions from the original PDF, let the caller choose the output directory and file names, and reject out-of-page boxes. The agent then picks any available skill that provides that capability. If none does, the skill stops and tells the user instead of improvising.
+
+## Verify with Citations
+
+Pure-documentation skill, with no scripts. When the user asks to verify or fact-check a claim, the answer leads with the verdict and backs it with citation blocks: the quote verbatim (never translated inside the quote marks), the decisive clause bolded, attribution to an author or organization, and the title as a Markdown link with a section path appended after it (`§4`, `Table 4`, `p. 7`), all inside one italic span. Past 3 sources, a summary table follows the prose, grouped by stance when sources disagree — including sources that were checked but did not support the claim.
+
+The hard constraint is never fabricating a quote, URL, author, or section number: if the text cannot be retrieved, cite nothing and say so. Anything unconfirmed is marked in place (*affiliation not stated on the page*, *abstract only*).
 
 ## Security
 

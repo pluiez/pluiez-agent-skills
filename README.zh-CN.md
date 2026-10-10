@@ -15,6 +15,7 @@
 | GitHub Proxy | `skills/github-proxy` | 当 github.com 超时、连接被拒或返回空响应时，将 GitHub URL 通过 `gh-proxy.org` 转发。 |
 | PDF Region Crop | `skills/pdf-region-crop` | 渲染 PDF 页面，并从原页面截取任意矩形区域（图、表、正文片段、标题、公式）为高清 PNG，内置一个 Python CLI。 |
 | Paper zh Translation | `skills/paper-zh-translation` | 把学术论文 PDF 完整翻译成简体中文 Markdown，并嵌入从原 PDF 截取的图表；出图依赖一个具备 PDF 区域截图能力的 skill。 |
+| Verify with Citations | `skills/verify-with-citations` | 核实、查证类任务的引用格式：逐字引原文、署名作者或机构、标题用 Markdown 链接并附章节层级，超过 3 项时补来源清单表。 |
 
 ## Gemini Image CLI
 
@@ -58,6 +59,12 @@ python skills/pdf-region-crop/scripts/pdf_regions.py --help
 ## Paper zh Translation
 
 纯文档 skill，没有脚本。它不写死截图工具的名字，只声明需要的能力（渲染页面、从原 PDF 截取指定区域、输出目录和文件名由调用方指定、越界时报错），由 agent 从可用的 skill 中按能力挑选。找不到满足条件的 skill 时，会停下来提示用户，不会临时写代码顶替。
+
+## Verify with Citations
+
+纯文档 skill，没有脚本。用户要求核实、查证、确认某个说法时，用统一的引用格式作答：先给结论，再给引用块——逐字引原文（不在引号内翻译）、加粗真正定案的那一句、署名作者或机构、标题用 Markdown 链接并在链接后附章节层级（`§4`、`Table 4`、`p. 7`），整体放在一个斜体 span 里。引用超过 3 项时，在末尾补一张来源清单表；来源立场不一致时按立场分组，查过但不支持结论的来源也一并列出。
+
+硬约束是不编造引文、URL、作者和章节号，无法取得原文时宁可不引；取不到的信息就地标注（如"页面未声明所属机构""仅见摘要"）。
 
 ## 安全
 

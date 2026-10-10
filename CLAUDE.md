@@ -102,3 +102,13 @@ Pure-documentation skill written in Chinese, with no `scripts/`. It depends on a
 Output is a package next to the PDF: `<arXiv ID+version> <short name>/`, or `<short name>/` when no arXiv ID can be confirmed from the PDF. The package contains `<PDF stem>.zh-CN.md` and `assets/`. Non-image files written into `assets/` by the capture tool are allowed; the skill never names them.
 
 Read `skills/paper-zh-translation/references/revising.md` only when the target package already exists, when revising or correcting an existing translation, or when translating a different version of the same paper.
+
+## verify-with-citations Skill
+
+Pure-documentation skill (no `scripts/`, no `references/`). Applies when the user asks to verify, fact-check, confirm, or find authoritative backing for a claim — in English or Chinese ("核实", "查证", "确认一下", "出处是哪里").
+
+Citation block format: blockquote with the verbatim quote, a blank quote line, then `—— <Author or Org>, *[Title](URL) §Section*`. The decisive clause is bolded; the title link and the section path sit inside one italic span. Quotes are never translated inside the quote marks.
+
+Past 3 sources, a summary table (`Source | Author / Org | Key passage`) follows the prose, grouped by stance when sources disagree.
+
+Hard constraints: never fabricate a quote, URL, author, or section number; mark unconfirmed details in place; separate quoted text from interpretation of it; date-stamp network sources that can change.
