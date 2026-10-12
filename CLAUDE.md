@@ -101,6 +101,8 @@ Pure-documentation skill written in Chinese, with no `scripts/`. It depends on a
 
 Output is a package next to the PDF: `<arXiv ID+version> <short name>/`, or `<short name>/` when no arXiv ID can be confirmed from the PDF. The package contains `<PDF stem>.zh-CN.md` and `assets/`. Non-image files written into `assets/` by the capture tool are allowed; the skill never names them.
 
+All math uses standard Markdown math syntax: `$...$` inline (including single variables and symbols), `$$...$$` on their own lines for display, `aligned`/`cases` inside one `$$` block for multi-line formulas, and `\tag{N}` to keep original equation numbers. No `\(...\)`/`\[...\]`, Unicode math characters, or images in place of formulas.
+
 Read `skills/paper-zh-translation/references/revising.md` only when the target package already exists, when revising or correcting an existing translation, or when translating a different version of the same paper.
 
 ## verify-with-citations Skill
