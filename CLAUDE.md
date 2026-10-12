@@ -99,7 +99,7 @@ Coordinates are normalised `[fx0, fy0, fx1, fy1]` in 0..1 of the page as rendere
 
 Pure-documentation skill written in Chinese, with no `scripts/`. It depends on a PDF region-capture capability, described by what it must do, never by skill name, so any equivalent skill can satisfy it. If no such skill is available, it must stop and tell the user. It must never write ad-hoc cropping code or fall back to full-page screenshots.
 
-Output is a package next to the PDF: `<arXiv ID+version> <short name>/`, or `<short name>/` when no arXiv ID can be confirmed from the PDF. The package contains `<PDF stem>.zh-CN.md` and `assets/`. Non-image files written into `assets/` by the capture tool are allowed; the skill never names them.
+Output is a package next to the PDF: `<arXiv ID+version> <short name>/`, or `<short name>/` when no arXiv ID can be confirmed from the PDF. The package contains the original-text transcription `<PDF stem>.md`, the translation `<PDF stem>.zh-CN.md`, and `assets/` shared by both. The two Markdown files mirror each other section by section, and the translation is written from the checked transcription. Non-image files written into `assets/` by the capture tool are allowed; the skill never names them.
 
 All math uses standard Markdown math syntax: `$...$` inline (including single variables and symbols), `$$...$$` on their own lines for display, `aligned`/`cases` inside one `$$` block for multi-line formulas, and `\tag{N}` to keep original equation numbers. No `\(...\)`/`\[...\]`, Unicode math characters, or images in place of formulas.
 
