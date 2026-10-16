@@ -66,12 +66,12 @@ Pure-documentation skill, with no scripts. It does not name a cropping skill. In
 The TradingView News skill includes a standard-library-only Python CLI (Python 3.9+, no packages). The runtime must be able to reach `*.tradingview.com`; in Claude's cloud environment, add it under Settings → Capabilities → Allow network egress → Additional allowed domains.
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list            # level 1: compact headlines, last 24 h
+python3 skills/tradingview-news/scripts/tv_news.py list            # level 1: same feed as the web News Flow default
 python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # level 2: stories from the last list
 python3 skills/tradingview-news/scripts/tv_news.py filters         # accepted filter values
 ```
 
-The server returns at most 200 items per request and refuses pagination, even when logged in, so every list reports whether each query covered the whole time window. All server-side filters are ANDed, so the CLI splits multiple values of one filter into separate requests and merges them. Story text is printed only for stories whose access level allows it: preview stories get their summary, and headline-only stories get the title and a subscription notice.
+With no options, `list` matches the web News Flow page's default view: language filter only, one request, every returned item. Filters work as on the web page: different filters are ANDed and several values of one filter are ORed. The server returns at most 200 items per request and refuses pagination, even when logged in, so every list reports each query's time coverage; `--split` sends one request per filter value for longer coverage. Story text is printed only for stories whose access level allows it: preview stories get their summary, and headline-only stories get the title and a subscription notice.
 
 ## Verify with Citations
 

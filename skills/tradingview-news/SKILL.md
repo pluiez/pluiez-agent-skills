@@ -9,8 +9,10 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
 
 信息分两级，按需逐级展开：
 
-1. **第一级 `list`**：按筛选条件拉取新闻流，合并、去重后，每条新闻输出一行（时间、来源、标题、相关标的、访问级别）。**默认只走这一级。**
+1. **第一级 `list`**：按筛选条件拉取新闻流，每条新闻输出一行（时间、来源、标题、相关标的、访问级别）。**默认只走这一级。**
 2. **第二级 `read`**：按序号或文章 id 取单篇正文，并严格按该文章的访问级别输出。**只在用户点名要展开时才调用。**
+
+不传任何参数时，`list` 的行为与 TradingView 网页 News Flow 页面的默认状态完全一致：只带语言筛选（英文），发一次请求，把返回的全部条目（最多 200 条）原样按时间倒序输出，不做时间截断，也不合并同标题条目。
 
 不使用 `tradingview-scraper` 库的原因：它的正文解析已经失效，只返回空内容；全文请求走的根域名会被网络白名单拦截；也没有全市场新闻流接口。
 
@@ -22,8 +24,12 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
 
 ## 工作流程
 
-1. **映射需求**：把用户的要求映射成 `list` 参数。没有特别要求时直接运行 `list`，默认最近 24 小时，使用 `default` 预设。用户提到市场、国家、行业、公司事件、来源、标的或时间范围时，换用对应的预设或筛选参数（见下文"筛选"）。不确定某个取值怎么写时，先运行 `filters` 查看。
-2. **读表头**：表头的 `# 查询 N` 行说明每路查询是否完整覆盖了时间窗口。出现 `⚠ 窗口内更早的新闻未获取` 时，回复中必须告诉用户实际只覆盖到几点，并建议收窄筛选（加国家、行业、来源等条件）或缩短时间窗口。
+1. **映射需求**：把用户的要求映射成 `list` 参数。
+   - 没有特别要求：直接运行 `list`，与网页默认一致。
+   - 用户提到时间范围（"今天""最近 24 小时""过去 3 小时"）：加 `--hours`。
+   - 用户提到市场、国家、行业、公司事件、宏观类别、来源、标的：用下文"筛选"中的参数，取值直接查表，不必先运行 `filters`。
+   - 用户要"要闻""重点新闻"：用 `--preset wires --hours 24`。
+2. **读表头**：表头的 `# 查询 N` 行说明每路查询拿到了多少条、覆盖了哪段时间。出现"已达单次上限，更早的新闻未获取"或"⚠ 窗口内更早的新闻未获取"时，回复中必须告诉用户实际只覆盖到几点。如果用户需要更长的时间范围，建议收窄筛选，或对多值筛选加 `--split`。
 3. **基于标题总结**，用中文写：
    - 按主题归类，例如宏观与央行、美股大盘、公司事件、行业、地区市场。同一事件的多条快讯合并成一点（Dow Jones 常连发多条）。
    - 每一点注明来源和时间（北京时间）。重要的点可以附上序号，例如 `#3`，方便用户点名展开。
@@ -46,54 +52,84 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
 
 ## 筛选
 
-服务端有两个限制，决定了脚本的设计：
+### 服务端规则
 
-- **每次请求最多返回 200 条，而且不能翻页**：游标和起止日期参数都会被拒绝，登录后也一样。所以筛选越宽，200 条覆盖的时间越短。脚本会在表头报告每路查询的覆盖情况。
-- **所有筛选条件都是"并且"关系**，同一参数的多个值也是如此。例如同时传两个标的，返回的是同时提到两者的新闻。为此脚本把同一参数的多个值拆成多次请求再合并，实现"或者"的效果；不同参数之间仍是"并且"。组合后的请求数上限为 30。
+- **不同筛选项之间是"并且"，同一筛选项的多个值之间是"或者"**，与网页端勾选筛选条件的效果一致。例如 `--market stock --country US JP` 表示"股票，并且国家是美国或日本"。
+- **每次请求最多返回 200 条，而且不能翻页**：游标和起止日期参数都会被拒绝，登录后也一样。筛选越宽，200 条覆盖的时间越短，所以脚本会在表头报告每路查询的覆盖情况。
+- 同一筛选项的多个值默认合并成一次请求，和网页一样，所有值共享 200 条上限。加 `--split` 则每个值各发一次请求，各自取 200 条后合并去重，覆盖时间更长。多个筛选项都多选时按组合拆分，拆分后的请求数上限为 30。
+- 同一筛选项实测传 32 个标的、22 个来源都正常返回；更大的数量未测试。
+- 语言只能选一个（服务端限制）。需要登录的"自选列表"筛选不支持。
 
-预设（`--preset`）：
+### 预设
+
+预设（`--preset`）是固定的筛选组合，**不能和筛选参数同时使用**。需要在预设基础上改条件时，直接写出完整的筛选参数。
 
 | 预设 | 内容 | 实测量级 |
 |---|---|---|
-| `default` | TradingView 头条，加上 Reuters 和 Dow Jones 的"重要"新闻 | 一天约 25～30 条，完整覆盖 24 小时 |
-| `top` | TradingView 编辑精选头条 | 一天约 3 条 |
-| `important` | 所有"重要"新闻 | 约 98% 是 TradingView 自动生成的内容，200 条只覆盖约 6 小时 |
+| 不用预设（默认） | 只带语言筛选，与网页默认一致 | 200 条，美股交易时段约覆盖 1 小时 |
+| `wires` | TradingView 编辑精选头条，加上 Reuters 和 Dow Jones 的"重要"新闻 | 一天约 25～30 条；200 条可往回覆盖数天到数月，**务必配合 `--hours`** |
+| `top` | TradingView 编辑精选头条 | 一天约 3 条；**务必配合 `--hours`** |
+| `important` | 所有"重要"新闻 | 约 98% 是 TradingView 自动生成的内容，200 条约覆盖 6 小时 |
 | `us-important` | 美股 + 重要 | 同上，以 TradingView 自动内容和分析师评级短讯为主 |
 | `us-stocks` | 美股全部 | 200 条约覆盖 2～3 小时 |
 | `macro` | 宏观经济 | 200 条约覆盖 10 小时 |
 | `crypto` | 加密货币 | 200 条约覆盖一天 |
-| `all` | 不加筛选 | 200 条不到 1 小时，只适合配合 `--hours 1` 看最新动态 |
 
-给出任何筛选参数而不指定 `--preset` 时，只用这些参数查询。同时指定 `--preset` 时，这些参数会叠加到预设的每一路查询上。
+### 筛选参数与全部取值
 
-筛选参数（取值以 `filters` 的输出为准）：
+多个值用空格或逗号分隔。行业名称含空格时，要给每个值加引号。
 
-| 参数 | 含义 | 示例取值 |
+| 参数 | 含义 | 全部取值 |
 |---|---|---|
-| `--market` | 市场类型 | `stock` `etf` `crypto` `forex` `index` `futures` `bond` `corp_bond` `economic` |
-| `--country` | 国家，两位代码 | `US` `CN` `JP` `KR` `HK` `TW` |
-| `--sector` | 行业（名称含空格时加引号） | `"Electronic Technology"` `"Technology Services"` `Finance` |
-| `--corp` | 公司事件 | `earnings` `ipo` `mergers_and_acquisitions` `recommendation` `management` |
-| `--econ` | 宏观类别 | `gdp` `labor` `prices` `money` `trade` `housing` |
-| `--crypto` | 加密货币主题 | `regulation` `etfs` `security` `exchanges` |
-| `--provider` | 来源 | `reuters` `dow-jones` `market-watch` `benzinga` `seekingalpha` `tradingview` |
-| `--priority` | 格式 | `top_stories` `important` `flash` `key_facts` |
-| `--symbol` | 标的，写成"交易所:代码" | `NASDAQ:NVDA` `NYSE:TSM` `KRX:005930` |
+| `--market` | 市场类型 | `stock`（股票）、`etf`（Exchange-Traded Fund，交易所交易基金）、`crypto`（加密货币）、`forex`（外汇）、`index`（指数）、`futures`（期货）、`bond`（Government bonds，国债）、`corp_bond`（Corporate bonds，公司债）、`economic`（Economy，宏观经济） |
+| `--country` | 国家 | ISO 3166-1 两位国家代码，如 `US` `CN` `JP` `KR` `HK` `TW` `GB` `DE` `IN`（不穷举） |
+| `--sector` | 行业（TradingView 行业分类） | `"Commercial Services"`（商业服务）、`Communications`（通信）、`"Consumer Durables"`（耐用消费品）、`"Consumer Non-Durables"`（非耐用消费品）、`"Consumer Services"`（消费者服务）、`"Distribution Services"`（分销服务）、`"Electronic Technology"`（电子科技，含半导体、硬件）、`"Energy Minerals"`（能源矿产，含石油、煤炭）、`Finance`（金融）、`Government`（政府）、`"Health Services"`（医疗服务）、`"Health Technology"`（医疗科技，含制药、医疗器械）、`"Industrial Services"`（工业服务）、`Miscellaneous`（其他）、`"Non-Energy Minerals"`（非能源矿产，含金属、采矿）、`"Process Industries"`（流程工业，含化工、材料）、`"Producer Manufacturing"`（生产制造）、`"Retail Trade"`（零售）、`"Technology Services"`（科技服务，含软件、互联网）、`Transportation`（交通运输）、`Utilities`（公用事业） |
+| `--corp` | 公司事件 | `ipo`（Initial Public Offering，首次公开募股）、`earnings`（财报）、`earnings_calls`（财报电话会）、`dividends`（分红）、`share_buybacks`（股票回购）、`strategy_business_products`（Strategy, business, and products，战略、业务与产品）、`mergers_and_acquisitions`（并购）、`management`（管理层变动）、`insider_trading`（内部人交易）、`ownership_changes`（持股变动）、`esg`（Environmental, Social, and Governance，网页显示为"ESG and regulation"，ESG 与监管）、`recommendation`（网页显示为"Analysts"，分析师评级与观点）、`credit_ratings`（信用评级） |
+| `--econ` | 宏观类别 | `gdp`（Gross Domestic Product，国内生产总值）、`labor`（就业与劳动力）、`prices`（物价与通胀）、`health`（网页显示为"Health"，实测以公共卫生和疫情、医疗支出与医保为主）、`money`（网页显示为"Money"，实测以央行与利率、货币政策、信贷为主）、`trade`（贸易）、`government`（实测以财政预算、赤字、政府政策为主）、`business`（实测以企业与行业景气数据为主，如钻井数）、`consumer`（消费）、`housing`（房地产）、`taxes`（税收） |
+| `--crypto` | 加密货币主题 | `market`（Market moves，行情变动）、`etfs`（Crypto ETFs，加密货币 ETF）、`pegs_reserves_and_liquidity`（Pegs, reserves, and liquidity，稳定币锚定、储备与流动性）、`regulation`（监管）、`adoption`（采用与普及）、`technology`（技术）、`security`（安全事件）、`fundraising`（融资）、`tokenomics`（代币经济学）、`exchanges`（交易所）、`people`（人物） |
+| `--priority` | 新闻格式 | `flash`（快讯，通常为纯标题）、`important`（重要，以 TradingView 自动内容为主）、`top_stories`（编辑精选头条）、`key_facts`（TradingView 自动生成的要点摘要，以加密货币为主） |
+| `--symbol` | 标的 | "交易所:代码"，如 `NASDAQ:NVDA` `NYSE:TSM` `KRX:005930` `TSE:6981` `HKEX:700`（不穷举） |
+| `--lang` | 语言（单选，默认 `en`） | `ar` `de` `en` `en_IN`（English (India)）`es` `fr` `he` `id`（印尼语）`it` `ja` `ko` `ms`（马来语）`pl` `pt` `ru` `th` `tr` `vi` `zh-Hans`（简体中文）`zh-Hant`（繁体中文） |
+| `--provider` | 新闻来源 | 见下表 |
 
-本地筛选：`--keyword`（标题正则，多个之间为"或者"）、`--exclude-provider`（例如排除 `tradingview_analyst_updates`，即自动生成的分析师评级短讯）、`--full-only`（只看可读全文的）、`--flash-only`（只看快讯）、`--limit`（默认全部输出）。
+`--provider` 的全部取值（id 后括号内为网页显示名）：
+
+`reuters`、`market-watch`（MarketWatch）、`dow-jones`（Dow Jones Newswires）、`trading-economics`（Trading Economics）、`sharecast`（ShareCast）、`dpa_afx`（dpa-AFX）、`macenews`（Mace News）、`business_wire`（BusinessWire）、`tradingview`、`marketbeat`、`barchart`、`cointelegraph`、`cme_group`（CME Group）、`quartr`、`quartr_insights`（Quartr Insights）、`beincrypto`、`newsbtc`、`zacks`、`stockstory`（Stock Story）、`marketindex`（Market Index）、`99Bitcoins`、`acceswire`（ACCESS Newswire）、`acn`（Asian Corporate Newswire）、`bravenewcoin`（Brave New Coin）、`chainwire`、`coindar`、`coinmarketcal`（CoinMarketCal）、`coinpedia`、`cryptobriefing`（Crypto Briefing）、`cryptonews`（CryptoNews）、`eqs`（EQS）、`etfcom`（etf.com）、`financemagnates`（Finance Magnates）、`financewire`（FinanceWire）、`forexlive`（现显示名为 InvestingLive）、`globenewswire`（GlobeNewswire）、`gurufocus`（GuruFocus）、`investorplace`（InvestorPlace）、`invezz`、`jcn`（Japan Corporate News）、`leverage_shares`（Leverage Shares）、`lse`（London Stock Exchange）、`miranda_partners`（Miranda Partners）、`modular_finance`（MFN by Modular Finance）、`moneycontrol`、`nbd`（网页显示名为 National Bank Of Denmark）、`tmx_newsfile`（TMX Newsfile）、`pressetext`、`prnewswire`（PR Newswire）、`smallcaps`（Small Caps）、`stocktwits`、`the_block`（The Block）、`thenewswire`（TheNewswire）、`u_today`（U.Today）、`zawya`、`baystreet`（BayStreet）、`cryptoprowl`（CryptoProwl）、`moodys`（Moody's）、`mint`、`benzinga`、`seekingalpha`（Seeking Alpha）、`business_line_india`（Business Line）、`economic_times_india`（Economic Times）、`businessworld_india`（Businessworld）、`bloomingbit`、`asian_news_international`（Asian News International）、`binance_news`（Binance News）
+
+另有一个不在上面列表中、但大量出现在数据里的来源：`tradingview_analyst_updates`，是 TradingView 自动生成的分析师评级短讯（"某机构维持某评级、目标价若干"）。它不能用作 `--provider` 筛选，但常用于 `--exclude-provider` 排除噪音。
+
+### 本地筛选与输出控制
+
+| 参数 | 作用 |
+|---|---|
+| `--hours N` | 只保留最近 N 小时（默认不过滤，与网页一致） |
+| `--keyword RE ...` | 只保留标题匹配任一正则的条目，忽略大小写 |
+| `--exclude-provider P ...` | 排除这些来源，按 id 或显示名匹配 |
+| `--full-only` | 只保留可读全文的条目 |
+| `--flash-only` | 只保留快讯 |
+| `--dedupe-titles` | 合并标题相同的条目，保留最新一条（默认关闭，与网页一致） |
+| `--split` | 多值筛选按值分别请求再合并，见上文"服务端规则" |
+| `--limit N` | 最多输出 N 条（默认全部） |
+| `--tz` | 显示时区，默认 `Asia/Shanghai` |
 
 ## 常用命令
 
-默认要闻，最近 24 小时：
+与网页 News Flow 默认状态相同：
 
 ```bash
 python3 scripts/tv_news.py list
 ```
 
-最近 12 小时的宏观新闻，以及最近 6 小时的美股新闻，去掉自动生成的评级短讯：
+今天的要闻；最近 12 小时的宏观新闻：
 
 ```bash
+python3 scripts/tv_news.py list --preset wires --hours 24
 python3 scripts/tv_news.py list --preset macro --hours 12
+```
+
+最近 6 小时的美股新闻，去掉自动生成的评级短讯：
+
+```bash
 python3 scripts/tv_news.py list --market stock --country US --hours 6 --exclude-provider tradingview_analyst_updates
 ```
 
@@ -104,10 +140,17 @@ python3 scripts/tv_news.py list --sector "Electronic Technology" --country US --
 python3 scripts/tv_news.py list --symbol NASDAQ:NVDA --hours 72 --keyword "China|export"
 ```
 
-中日韩股市（自动拆成 3 次请求再合并）：
+中日韩股市，一次请求（共享 200 条）或按国家拆分（各 200 条，覆盖更长）：
 
 ```bash
 python3 scripts/tv_news.py list --market stock --country CN JP KR --hours 12
+python3 scripts/tv_news.py list --market stock --country CN JP KR --hours 12 --split
+```
+
+一组标的中任一只的新闻：
+
+```bash
+python3 scripts/tv_news.py list --symbol NASDAQ:NVDA NASDAQ:AMD NYSE:TSM --hours 24
 ```
 
 展开上一次列表中的第 3 条和第 7 条；按 id 读取；放宽单篇字数上限：
@@ -118,7 +161,7 @@ python3 scripts/tv_news.py read 'DJN_DN20261016003434:0'
 python3 scripts/tv_news.py read '#3' --max-chars 20000
 ```
 
-查看所有筛选项的取值：
+从服务端实时查看筛选取值（只在怀疑上表已过时才需要）：
 
 ```bash
 python3 scripts/tv_news.py filters

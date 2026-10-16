@@ -66,12 +66,12 @@ python skills/pdf-region-crop/scripts/pdf_regions.py --help
 TradingView News skill 包含一个只用 Python 标准库的 CLI（Python 3.9+，无需安装任何包）。运行环境必须能访问 `*.tradingview.com`；在 Claude 云端环境中，需要在 Settings → Capabilities → Allow network egress → Additional allowed domains 里加入这个域名。
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list            # 第一级：精简标题列表，最近 24 小时
+python3 skills/tradingview-news/scripts/tv_news.py list            # 第一级：与网页 News Flow 默认状态相同的新闻流
 python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # 第二级：展开上一次列表中的文章
 python3 skills/tradingview-news/scripts/tv_news.py filters         # 查看可用的筛选取值
 ```
 
-服务端每次请求最多返回 200 条且不允许翻页（登录后也一样），所以每次列表都会报告每路查询是否完整覆盖了时间窗口。服务端的所有筛选条件都是"并且"关系，因此 CLI 会把同一筛选项的多个值拆成多次请求再合并。只有访问级别允许的文章才输出正文：预览级别只给摘要，仅标题级别只给标题和订阅提示。
+不带参数时，`list` 与网页 News Flow 页面的默认状态一致：只带语言筛选，发一次请求，输出返回的全部条目。筛选规则也与网页一致：不同筛选项之间是"并且"，同一筛选项的多个值之间是"或者"。服务端每次请求最多返回 200 条且不允许翻页（登录后也一样），所以每次列表都会报告每路查询的覆盖时间；加 `--split` 可按筛选值分别请求，覆盖更长时间。只有访问级别允许的文章才输出正文：预览级别只给摘要，仅标题级别只给标题和订阅提示。
 
 ## Verify with Citations
 

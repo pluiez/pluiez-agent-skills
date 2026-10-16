@@ -42,9 +42,10 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 PAGE_CAP = 200
 MAX_REQUESTS = 30
 
-# CLI option -> news-flow filter id. Every filter is ANDed by the server,
-# including several values of the same filter, so the CLI turns several
-# values into separate requests and merges them (OR).
+# CLI option -> news-flow filter id. Like the web page, the server ANDs
+# different filters and ORs the values of one filter, which are sent as one
+# comma-joined, sorted list ("filter=provider:dow-jones,reuters"). Filters
+# must also be sent in sorted order, or the server answers 400.
 FILTER_OPTS = {
     "market": "market",
     "country": "market_country",
@@ -57,13 +58,15 @@ FILTER_OPTS = {
     "symbol": "symbol",
 }
 
-# "important" alone is ~98% TradingView's own auto-generated items (analyst
-# rating blurbs and the like) and covers only ~6 h per request. The default
-# preset therefore takes TradingView's curated top stories plus the
-# "important" items of the two big newswires: ~25-30 stories a day, each
-# request covering well over 24 h.
+# With no preset and no filter, the CLI sends exactly what the web News Flow
+# page sends by default: the language filter only, one request, and prints
+# every item returned. Presets are optional shortcuts; each one is a list of
+# query groups whose results are merged. "important" alone is ~98%
+# TradingView's own auto-generated items (analyst rating blurbs and the
+# like), so "wires" takes TradingView's curated top stories plus the
+# "important" items of the two big newswires.
 PRESETS = {
-    "default": [
+    "wires": [
         {"priority": ["top_stories"]},
         {"priority": ["important"], "provider": ["reuters", "dow-jones"]},
     ],
@@ -73,7 +76,6 @@ PRESETS = {
     "us-stocks": [{"market": ["stock"], "market_country": ["US"]}],
     "macro": [{"market": ["economic"]}],
     "crypto": [{"market": ["crypto"]}],
-    "all": [{}],
 }
 
 ACCESS_LABEL = {None: "全文", "preview": "预览", "headline": "仅标题", "provider": "受限"}
@@ -143,32 +145,37 @@ def blocked_message(host):
 # ---------------------------------------------------------------- list
 
 def build_query_groups(args):
-    """Return a list of {filter_id: [values]} groups, before OR expansion."""
+    """Return ([{filter_id: [values]}, ...], label) before request expansion."""
     explicit = {}
     for opt, fid in FILTER_OPTS.items():
         vals = getattr(args, opt) or []
-        vals = [v for chunk in vals for v in chunk.split(",") if v.strip()]
+        vals = [v.strip() for chunk in vals for v in chunk.split(",") if v.strip()]
         if vals:
-            explicit[fid] = [v.strip() for v in vals]
-    if explicit and not args.preset:
+            explicit[fid] = list(dict.fromkeys(vals))
+    if args.preset and explicit:
+        raise ValueError("--preset 不能和筛选参数同时使用：预设只是固定的筛选组合，"
+                         "需要改条件时直接写出完整的筛选参数（用 filters 查看预设展开后的内容）。")
+    if args.preset:
+        return [dict(g) for g in PRESETS[args.preset]], f"预设 {args.preset}"
+    if explicit:
         return [explicit], "自定义筛选"
-    preset = args.preset or "default"
-    groups = [dict(g) for g in PRESETS[preset]]
-    for g in groups:  # explicit filters narrow every preset group
-        g.update(explicit)
-    return groups, f"预设 {preset}"
+    return [{}], "网页默认（仅语言筛选）"
 
 
-def expand(groups):
-    """Expand multi-valued filters into separate single-valued requests."""
+def expand(groups, split):
+    """One request per group with comma-joined values (server-side OR), or,
+    with split, one request per value combination (each gets its own cap)."""
     out = []
     for g in groups:
+        if not split:
+            out.append({k: sorted(v) for k, v in g.items()})
+            continue
         keys = sorted(g)
-        for combo in itertools.product(*(g[k] for k in keys)):
-            out.append(dict(zip(keys, combo)))
+        for combo in itertools.product(*(sorted(g[k]) for k in keys)):
+            out.append({k: [v] for k, v in zip(keys, combo)})
     seen, uniq = set(), []
     for q in out:
-        key = tuple(sorted(q.items()))
+        key = tuple((k, tuple(v)) for k, v in sorted(q.items()))
         if key not in seen:
             seen.add(key)
             uniq.append(q)
@@ -176,16 +183,15 @@ def expand(groups):
 
 
 def flow_url(query, lang):
-    filters = sorted([f"lang:{lang}"] + [f"{k}:{v}" for k, v in query.items()])
-    qs = "client=web&streaming=false" + "".join(
-        "&filter=" + urllib.parse.quote(f, safe=":") for f in filters)
-    return f"{FLOW_URL}?{qs}"
+    filters = sorted([f"lang:{lang}"] + [f"{k}:{','.join(sorted(v))}" for k, v in query.items()])
+    qs = "&".join("filter=" + urllib.parse.quote(f, safe=":") for f in filters)
+    return f"{FLOW_URL}?{qs}&client=web&streaming=false"
 
 
 def query_label(query):
     if not query:
-        return "全部（仅语言）"
-    return " & ".join(f"{k}={'|'.join(v) if isinstance(v, list) else v}"
+        return "仅语言"
+    return " & ".join(f"{k}={','.join(v) if isinstance(v, list) else v}"
                       for k, v in sorted(query.items()))
 
 
@@ -224,17 +230,21 @@ def cache_path():
 def cmd_list(args):
     tz = get_tz(args.tz)
     now = time.time()
-    since = now - args.hours * 3600
+    since = now - args.hours * 3600 if args.hours else None
     try:
         pats = [re.compile(k, re.I) for k in args.keyword or []]
     except re.error as e:
         log(f"error=bad_keyword {e}")
         return 2
-    groups, source = build_query_groups(args)
-    queries = expand(groups)
+    try:
+        groups, source = build_query_groups(args)
+    except ValueError as e:
+        log(f"error=bad_args {e}")
+        return 2
+    queries = expand(groups, args.split)
     if len(queries) > MAX_REQUESTS:
         log(f"error=too_many_requests count={len(queries)} max={MAX_REQUESTS}")
-        log("筛选值的组合太多，请减少多选的值。")
+        log("--split 拆出的请求太多，请减少多选的值，或去掉 --split。")
         return 2
 
     merged, failures, notes = {}, 0, []
@@ -250,59 +260,63 @@ def cmd_list(args):
             failures += 1
             notes.append(f"# 查询 {i}（{label}）失败：{e}")
             continue
-        in_win = [it for it in items if it.get("published", 0) >= since]
         oldest = min((it["published"] for it in items), default=None)
-        truncated = len(items) >= PAGE_CAP - 10 and oldest is not None and oldest > since
-        if truncated:
-            hrs = (now - oldest) / 3600
-            notes.append(
-                f"# 查询 {i}（{label}）：{len(items)} 条，只覆盖到 {fmt_short(oldest, tz)}"
-                f"（约 {hrs:.1f} 小时），⚠ 窗口内更早的新闻未获取")
+        capped = len(items) >= PAGE_CAP - 10
+        if since is None:
+            span = (f"，{fmt_short(oldest, tz)} → {fmt_short(max(it['published'] for it in items), tz)}"
+                    f"（约 {(now - oldest) / 3600:.1f} 小时）") if items else ""
+            cap = "，已达单次上限，更早的新闻未获取" if capped else ""
+            notes.append(f"# 查询 {i}（{label}）：{len(items)} 条{span}{cap}")
+            kept = items
         else:
-            notes.append(f"# 查询 {i}（{label}）：窗口内 {len(in_win)} 条（完整）")
-        for it in in_win:
-            if it["id"] not in merged:
-                merged[it["id"]] = it
+            kept = [it for it in items if it.get("published", 0) >= since]
+            if capped and oldest is not None and oldest > since:
+                notes.append(
+                    f"# 查询 {i}（{label}）：{len(items)} 条，只覆盖到 {fmt_short(oldest, tz)}"
+                    f"（约 {(now - oldest) / 3600:.1f} 小时），⚠ 窗口内更早的新闻未获取")
+            else:
+                notes.append(f"# 查询 {i}（{label}）：窗口内 {len(kept)} 条（完整）")
+        for it in kept:
+            merged.setdefault(it["id"], it)
 
     rows = sorted(merged.values(), key=lambda x: x.get("published", 0), reverse=True)
     fetched = len(rows)
 
     # local filters
     if pats:
-        rows =[r for r in rows if any(p.search(r.get("title", "")) for p in pats)]
+        rows = [r for r in rows if any(p.search(r.get("title", "")) for p in pats)]
     if args.exclude_provider:
-        ex = {e.lower() for chunk in args.exclude_provider for e in chunk.split(",")}
+        ex = {e.strip().lower() for chunk in args.exclude_provider for e in chunk.split(",")}
         rows = [r for r in rows if provider_of(r)[0].lower() not in ex
                 and provider_of(r)[1].lower() not in ex]
     if args.full_only:
         rows = [r for r in rows if r.get("permission") is None]
     if args.flash_only:
         rows = [r for r in rows if r.get("is_flash")]
-
-    # near-duplicate titles (same story from several feeds): keep the newest
-    seen, deduped, dup = set(), [], 0
-    for r in rows:
-        key = norm_title(r.get("title", ""))
-        if key and key in seen:
-            dup += 1
-            continue
-        seen.add(key)
-        deduped.append(r)
-    rows = deduped
+    dup = 0
+    if args.dedupe_titles:  # same headline from several feeds: keep the newest
+        seen, deduped = set(), []
+        for r in rows:
+            key = norm_title(r.get("title", ""))
+            if key and key in seen:
+                dup += 1
+                continue
+            seen.add(key)
+            deduped.append(r)
+        rows = deduped
     total = len(rows)
     if args.limit and args.limit > 0:
         rows = rows[:args.limit]
 
-    start_s = fmt_short(since, tz)
-    end_s = fmt_short(now, tz)
     tzname = tz_label(datetime.fromtimestamp(now, tz))
-    print(f"# TradingView News Flow | {source} | 语言 {args.lang} | 最近 {args.hours:g} 小时"
-          f"（{start_s} → {end_s}，时区 {tzname}）")
+    window = (f"最近 {args.hours:g} 小时（{fmt_short(since, tz)} → {fmt_short(now, tz)}）"
+              if since is not None else "不限时间（与网页一致，取每次请求返回的全部条目）")
+    print(f"# TradingView News Flow | {source} | 语言 {args.lang} | {window} | 时区 {tzname}")
     for n in notes:
         print(n)
     shown = f"，显示前 {len(rows)} 条" if len(rows) < total else ""
     dropped = fetched - total - dup
-    detail = [f"窗口内 {fetched} 条（已按 id 去重）"]
+    detail = [f"{'窗口内' if since is not None else '共'} {fetched} 条（已按 id 去重）"]
     if dup:
         detail.append(f"合并同标题 {dup} 条")
     if dropped:
@@ -552,7 +566,7 @@ def cmd_filters(args):
         return 1
     opt_of = {v: k for k, v in FILTER_OPTS.items()}
     print("# 每个筛选项：CLI 参数 (服务端 id)：可选值（括号内为显示名）")
-    print("# 所有条件在服务端都是\"并且\"关系；同一参数传多个值时，脚本拆成多次请求再合并（\"或者\"）。")
+    print("# 不同筛选项之间是\"并且\"，同一筛选项的多个值之间是\"或者\"（与网页端一致）。")
     for f in meta.get("filters", []):
         fid = f.get("id")
         if fid == "lang":
@@ -573,8 +587,8 @@ def cmd_filters(args):
         else:
             shown = "（无固定取值）"
         print(f"--{opt} ({fid})：{shown}")
-    print("# 预设：" + "; ".join(f"{k} = " + " ∪ ".join(query_label(q) for q in v)
-                              for k, v in PRESETS.items()))
+    print("# 预设（多路查询合并）：" + "; ".join(
+        f"{k} = " + " ∪ ".join(f"({query_label(q)})" for q in v) for k, v in PRESETS.items()))
     return 0
 
 
@@ -591,11 +605,17 @@ def main(argv=None):
 
     pl = sub.add_parser("list", parents=[common], help="level 1: compact headline list")
     pl.add_argument("--preset", choices=sorted(PRESETS),
-                    help="query preset (default: 'default' when no filter is given)")
-    pl.add_argument("--hours", type=float, default=24, help="time window in hours (default 24)")
+                    help="optional query preset; cannot be combined with filter options")
+    pl.add_argument("--hours", type=float, default=None,
+                    help="keep only the last N hours (default: no time filter, like the web page)")
     for opt, fid in FILTER_OPTS.items():
         pl.add_argument(f"--{opt}", nargs="+", metavar="V",
                         help=f"news-flow filter '{fid}' (several values = OR)")
+    pl.add_argument("--split", action="store_true",
+                    help="one request per filter value (each gets its own 200-item cap) "
+                         "instead of one comma-joined request")
+    pl.add_argument("--dedupe-titles", action="store_true",
+                    help="merge items with the same headline (off by default, like the web page)")
     pl.add_argument("--keyword", nargs="+", metavar="RE", help="keep titles matching any regex")
     pl.add_argument("--exclude-provider", nargs="+", metavar="P", help="drop these providers")
     pl.add_argument("--full-only", action="store_true", help="only stories readable in full")

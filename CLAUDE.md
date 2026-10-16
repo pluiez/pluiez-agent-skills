@@ -110,12 +110,16 @@ Read `skills/paper-zh-translation/references/revising.md` only when the target p
 Chinese-language skill. The bundled `scripts/tv_news.py` uses the Python 3.9+ standard library only (no `pip install`) and calls the JSON endpoints TradingView's own web pages use: `news-mediator.tradingview.com/public/news-flow/v2/news` (list), `news-headlines.tradingview.com/v3/story` (story text) and `.../public/news-flow/v1/meta` (filter values). It does not use the `tradingview-scraper` package, whose story parser returns empty bodies and whose story URL uses the bare `tradingview.com` domain.
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list [--preset P] [--hours 24] [--market ...] [--country ...] [--sector ...] [--provider ...] [--priority ...] [--symbol EX:TICKER]
+python3 skills/tradingview-news/scripts/tv_news.py list                    # same as the web News Flow default
+python3 skills/tradingview-news/scripts/tv_news.py list --preset wires --hours 24
+python3 skills/tradingview-news/scripts/tv_news.py list [--market ...] [--country ...] [--sector ...] [--provider ...] [--symbol EX:TICKER ...] [--hours N] [--split]
 python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7' [--max-chars 8000]
 python3 skills/tradingview-news/scripts/tv_news.py filters
 ```
 
-Server facts the design depends on (all verified, including while logged in): at most 200 items per request; `cursor`, `start_date` and `end_date` are rejected, so there is no pagination; every filter is ANDed, including several values of one filter, so the CLI expands multi-valued options into separate requests (max 30) and merges them by id. Filters must be sent in sorted order. `priority=important` alone is ~98% TradingView's own auto-generated items, which is why the `default` preset is top stories plus Reuters and Dow Jones "important" items.
+With no preset and no filter, `list` sends exactly what the web News Flow page sends by default (language filter only, one request) and prints every returned item, with no time filter and no headline merging. `--hours` and `--dedupe-titles` are opt-in.
+
+Server facts the design depends on (all verified, including while logged in): at most 200 items per request; `cursor`, `start_date` and `end_date` are rejected, so there is no pagination. Different filters are ANDed and the values of one filter are ORed, as on the web page. Values of one filter are sent as one comma-joined list (`filter=provider:dow-jones,reuters`); both the filters and the values inside each filter must be sorted, or the server answers 400. (Sending each value as its own `filter=` parameter ANDs them instead; never build URLs that way.) The comma-joined request shares one 200-item cap across all values; `--split` instead makes one request per value combination (max 30 requests), each with its own cap, and merges them by id. `--preset` cannot be combined with filter options. `priority=important` alone is ~98% TradingView's own auto-generated items, which is why the `wires` preset is top stories plus Reuters and Dow Jones "important" items.
 
 Access levels come from each item's `permission`: absent = full text, `preview` = summary only, `headline`/`provider` = title only. The story endpoint may return full text for restricted stories; the CLI deliberately never prints it. `list` caches the last list in `$TV_NEWS_CACHE` (default: system temp dir) so `read` accepts `#N`. Times default to `Asia/Shanghai` (`--tz` or `TV_NEWS_TZ` to change). Exit status: 0 ok, 1 some requests failed, 2 bad input, 3 network blocked (`error=network_blocked` on stdout).
 
