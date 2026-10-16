@@ -105,6 +105,20 @@ All math uses standard Markdown math syntax: `$...$` inline (including single va
 
 Read `skills/paper-zh-translation/references/revising.md` only when the target package already exists, when revising or correcting an existing translation, or when translating a different version of the same paper.
 
+## tradingview-news Skill
+
+Chinese-language skill. The bundled `scripts/tv_news.py` uses the Python 3.9+ standard library only (no `pip install`) and calls the JSON endpoints TradingView's own web pages use: `news-mediator.tradingview.com/public/news-flow/v2/news` (list), `news-headlines.tradingview.com/v3/story` (story text) and `.../public/news-flow/v1/meta` (filter values). It does not use the `tradingview-scraper` package, whose story parser returns empty bodies and whose story URL uses the bare `tradingview.com` domain.
+
+```bash
+python3 skills/tradingview-news/scripts/tv_news.py list [--preset P] [--hours 24] [--market ...] [--country ...] [--sector ...] [--provider ...] [--priority ...] [--symbol EX:TICKER]
+python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7' [--max-chars 8000]
+python3 skills/tradingview-news/scripts/tv_news.py filters
+```
+
+Server facts the design depends on (all verified, including while logged in): at most 200 items per request; `cursor`, `start_date` and `end_date` are rejected, so there is no pagination; every filter is ANDed, including several values of one filter, so the CLI expands multi-valued options into separate requests (max 30) and merges them by id. Filters must be sent in sorted order. `priority=important` alone is ~98% TradingView's own auto-generated items, which is why the `default` preset is top stories plus Reuters and Dow Jones "important" items.
+
+Access levels come from each item's `permission`: absent = full text, `preview` = summary only, `headline`/`provider` = title only. The story endpoint may return full text for restricted stories; the CLI deliberately never prints it. `list` caches the last list in `$TV_NEWS_CACHE` (default: system temp dir) so `read` accepts `#N`. Times default to `Asia/Shanghai` (`--tz` or `TV_NEWS_TZ` to change). Exit status: 0 ok, 1 some requests failed, 2 bad input, 3 network blocked (`error=network_blocked` on stdout).
+
 ## verify-with-citations Skill
 
 Pure-documentation skill (no `scripts/`, no `references/`). Applies when the user asks to verify, fact-check, confirm, or find authoritative backing for a claim — in English or Chinese ("核实", "查证", "确认一下", "出处是哪里").

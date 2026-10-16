@@ -15,6 +15,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 | PDF Region Crop | `skills/pdf-region-crop` | Render PDF pages and capture arbitrary rectangular regions (figures, tables, text fragments, titles, formulas) as high-resolution PNGs cut from the original page, with a bundled Python CLI. |
 | Paper zh Translation | `skills/paper-zh-translation` | Translate an academic paper PDF into a complete Simplified Chinese Markdown translation, plus a matching original-text Markdown transcription, with embedded figures and tables; relies on any skill that provides PDF region capture. |
+| TradingView News | `skills/tradingview-news` | Fetch and summarize TradingView's market-wide News Flow with progressive disclosure: a compact headline list first, full stories on demand, respecting each story's access level; bundled stdlib-only Python CLI. |
 | Verify with Citations | `skills/verify-with-citations` | Citation format for verification work: verbatim quote, author/organization attribution, Markdown-linked title with section path, and a source table past 3 sources. |
 
 ## Gemini Image CLI
@@ -59,6 +60,18 @@ Regions are always normalised boxes `[fx0, fy0, fx1, fy1]` (0..1, origin at the 
 ## Paper zh Translation
 
 Pure-documentation skill, with no scripts. It does not name a cropping skill. Instead, it states the capability it needs: render pages, crop given regions from the original PDF, let the caller choose the output directory and file names, and reject out-of-page boxes. The agent then picks any available skill that provides that capability. If none does, the skill stops and tells the user instead of improvising.
+
+## TradingView News
+
+The TradingView News skill includes a standard-library-only Python CLI (Python 3.9+, no packages). The runtime must be able to reach `*.tradingview.com`; in Claude's cloud environment, add it under Settings → Capabilities → Allow network egress → Additional allowed domains.
+
+```bash
+python3 skills/tradingview-news/scripts/tv_news.py list            # level 1: compact headlines, last 24 h
+python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # level 2: stories from the last list
+python3 skills/tradingview-news/scripts/tv_news.py filters         # accepted filter values
+```
+
+The server returns at most 200 items per request and refuses pagination, even when logged in, so every list reports whether each query covered the whole time window. All server-side filters are ANDed, so the CLI splits multiple values of one filter into separate requests and merges them. Story text is printed only for stories whose access level allows it: preview stories get their summary, and headline-only stories get the title and a subscription notice.
 
 ## Verify with Citations
 
