@@ -540,7 +540,10 @@ def cmd_read(args):
             continue
 
         perm = s.get("permission")
-        access = ACCESS_LABEL.get(perm, "受限")
+        # The response may include a body even when permission says headline.
+        # Use the returned content first; permission is only a fallback.
+        text = ast_to_text(s.get("astDescription")) if s.get("astDescription") else ""
+        access = "全文" if text else ACCESS_LABEL.get(perm, "受限")
         prov = s.get("provider")
         pname = prov.get("name") if isinstance(prov, dict) else (prov or "")
         syms = ", ".join(x.get("symbol", "") for x in s.get("relatedSymbols") or [])
@@ -561,23 +564,22 @@ def cmd_read(args):
             print(f"链接: {link}")
         print("---")
 
-        if perm in ("headline", "provider"):
+        if not text and perm in ("headline", "provider"):
             print(f"status=restricted permission={perm}")
             print("这篇文章需要 TradingView 相应的订阅权限才能阅读全文；当前（未登录）只能看到标题。"
                   "如需阅读，请在 TradingView 用有权限的账户打开上面的链接。")
             continue
-        if perm == "preview":
+        if not text and perm == "preview":
             desc = (s.get("shortDescription") or "").strip()
             print("status=preview permission=preview")
             print("这篇文章当前只开放预览，以下为摘要，并非全文：")
             print((desc + ("…" if len(desc) >= 290 else "")) if desc else "（没有可用的摘要）")
             continue
-        if perm is not None:
+        if not text and perm is not None:
             print(f"status=restricted permission={perm}")
             print("这篇文章的访问级别无法识别，按受限处理，不输出正文。")
             continue
 
-        text = ast_to_text(s.get("astDescription")) if s.get("astDescription") else ""
         if not text:
             desc = (s.get("shortDescription") or "").strip()
             print("status=no_body")

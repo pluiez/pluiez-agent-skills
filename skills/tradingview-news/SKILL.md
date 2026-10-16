@@ -34,7 +34,7 @@ description: 搜索、筛选 TradingView 新闻流（News Flow）：市场要闻
    - `no_body`：纯标题快讯，本身没有正文。
    - `error`：获取失败，原因在同一段输出中。
 
-   接口有时会连受限文章的正文一起返回，脚本不会输出，也不要设法获取。
+   优先解析接口已返回的 `astDescription` 正文。只要解析出正文，就正常输出并标记 `status=full`，仍遵循 `--max-chars` 的截断规则；即使 `permission` 为 `headline`、`provider` 或 `preview`，也不丢弃已取得的正文。只有未解析出正文时，才根据权限信息判断预览或受限状态。
 
 ## 规则
 
@@ -129,7 +129,7 @@ python3 scripts/tv_news.py filters                                # 服务端当
 #3 10-16 21:00 | Dow Jones Newswires | Canada Housing Starts Rise in September, ... | CAHST | 全文
 ```
 
-访问级别：`全文` 可读正文；`预览` 只有摘要；`仅标题` 和 `受限` 都只有标题，`read` 对两者的处理相同。行尾可能带有 `快讯` 或 `独家` 标记。
+`list` 的访问级别来自接口权限标签：`全文`、`预览`、`仅标题`、`受限`，不能据此确定 `read` 是否能取得正文；`--full-only` 也仅按此标签筛选。行尾可能带有 `快讯` 或 `独家` 标记。`read` 若解析出正文，访问级别显示为 `全文`，实际读取结果以 `status` 为准。
 
 `read` 的每篇文章依次输出标题、元信息（来源、时间、标的、访问级别）、链接、一行 `status=...`，最后是正文或说明。
 
