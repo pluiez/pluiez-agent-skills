@@ -34,7 +34,7 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
    - 按主题归类，例如宏观与央行、美股大盘、公司事件、行业、地区市场。同一事件的多条快讯合并成一点（Dow Jones 常连发多条）。
    - 每一点注明来源和时间（北京时间）。重要的点可以附上序号，例如 `#3`，方便用户点名展开。
    - 不要逐条罗列或逐条翻译整个列表，除非用户要求。只能从标题判断的内容不要过度推断，也不要补充列表里没有的事实。
-4. **按需展开**：只有用户点名（"展开 #3、#7"、"详细说说 Netflix 那条"）时才运行 `read`。不要为了让总结更完整而主动去读全文。一次最多 5 篇。
+4. **按需展开**：只有用户点名（"展开 #3、#7"、"详细说说 Netflix 那条"）时才运行 `read`。不要为了让总结更完整而主动去读全文。一次最多 5 篇（`--max-stories` 的默认值），每篇正文默认最多 8000 字符（`--max-chars`）。
 5. **按 `status` 处理 `read` 的结果**：
    - `status=full`：基于正文概括要点，用中文写。不要整篇转贴或全文翻译，需要引用时只引一两句短句。
    - `status=preview`：明确说明只有摘要，不是全文。
@@ -65,7 +65,7 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
 预设（`--preset`）是固定的筛选组合，**不能和筛选参数同时使用**。需要在预设基础上改条件时，直接写出完整的筛选参数。
 
 | 预设 | 内容 | 实测量级 |
-|---|---|---|
+|---|---|---|---|
 | 不用预设（默认） | 只带语言筛选，与网页默认一致 | 200 条，美股交易时段约覆盖 1 小时 |
 | `wires` | TradingView 编辑精选头条，加上 Reuters 和 Dow Jones 的"重要"新闻 | 一天约 25～30 条；200 条可往回覆盖数天到数月，**务必配合 `--hours`** |
 | `top` | TradingView 编辑精选头条 | 一天约 3 条；**务必配合 `--hours`** |
@@ -79,18 +79,18 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
 
 多个值用空格或逗号分隔。行业名称含空格时，要给每个值加引号。
 
-| 参数 | 含义 | 全部取值 |
-|---|---|---|
-| `--market` | 市场类型 | `stock`（股票）、`etf`（Exchange-Traded Fund，交易所交易基金）、`crypto`（加密货币）、`forex`（外汇）、`index`（指数）、`futures`（期货）、`bond`（Government bonds，国债）、`corp_bond`（Corporate bonds，公司债）、`economic`（Economy，宏观经济） |
-| `--country` | 国家 | ISO 3166-1 两位国家代码，如 `US` `CN` `JP` `KR` `HK` `TW` `GB` `DE` `IN`（不穷举） |
-| `--sector` | 行业（TradingView 行业分类） | `"Commercial Services"`（商业服务）、`Communications`（通信）、`"Consumer Durables"`（耐用消费品）、`"Consumer Non-Durables"`（非耐用消费品）、`"Consumer Services"`（消费者服务）、`"Distribution Services"`（分销服务）、`"Electronic Technology"`（电子科技，含半导体、硬件）、`"Energy Minerals"`（能源矿产，含石油、煤炭）、`Finance`（金融）、`Government`（政府）、`"Health Services"`（医疗服务）、`"Health Technology"`（医疗科技，含制药、医疗器械）、`"Industrial Services"`（工业服务）、`Miscellaneous`（其他）、`"Non-Energy Minerals"`（非能源矿产，含金属、采矿）、`"Process Industries"`（流程工业，含化工、材料）、`"Producer Manufacturing"`（生产制造）、`"Retail Trade"`（零售）、`"Technology Services"`（科技服务，含软件、互联网）、`Transportation`（交通运输）、`Utilities`（公用事业） |
-| `--corp` | 公司事件 | `ipo`（Initial Public Offering，首次公开募股）、`earnings`（财报）、`earnings_calls`（财报电话会）、`dividends`（分红）、`share_buybacks`（股票回购）、`strategy_business_products`（Strategy, business, and products，战略、业务与产品）、`mergers_and_acquisitions`（并购）、`management`（管理层变动）、`insider_trading`（内部人交易）、`ownership_changes`（持股变动）、`esg`（Environmental, Social, and Governance，网页显示为"ESG and regulation"，ESG 与监管）、`recommendation`（网页显示为"Analysts"，分析师评级与观点）、`credit_ratings`（信用评级） |
-| `--econ` | 宏观类别 | `gdp`（Gross Domestic Product，国内生产总值）、`labor`（就业与劳动力）、`prices`（物价与通胀）、`health`（网页显示为"Health"，实测以公共卫生和疫情、医疗支出与医保为主）、`money`（网页显示为"Money"，实测以央行与利率、货币政策、信贷为主）、`trade`（贸易）、`government`（实测以财政预算、赤字、政府政策为主）、`business`（实测以企业与行业景气数据为主，如钻井数）、`consumer`（消费）、`housing`（房地产）、`taxes`（税收） |
-| `--crypto` | 加密货币主题 | `market`（Market moves，行情变动）、`etfs`（Crypto ETFs，加密货币 ETF）、`pegs_reserves_and_liquidity`（Pegs, reserves, and liquidity，稳定币锚定、储备与流动性）、`regulation`（监管）、`adoption`（采用与普及）、`technology`（技术）、`security`（安全事件）、`fundraising`（融资）、`tokenomics`（代币经济学）、`exchanges`（交易所）、`people`（人物） |
-| `--priority` | 新闻格式 | `flash`（快讯，通常为纯标题）、`important`（重要，以 TradingView 自动内容为主）、`top_stories`（编辑精选头条）、`key_facts`（TradingView 自动生成的要点摘要，以加密货币为主） |
-| `--symbol` | 标的 | "交易所:代码"，如 `NASDAQ:NVDA` `NYSE:TSM` `KRX:005930` `TSE:6981` `HKEX:700`（不穷举） |
-| `--lang` | 语言（单选，默认 `en`） | `ar` `de` `en` `en_IN`（English (India)）`es` `fr` `he` `id`（印尼语）`it` `ja` `ko` `ms`（马来语）`pl` `pt` `ru` `th` `tr` `vi` `zh-Hans`（简体中文）`zh-Hant`（繁体中文） |
-| `--provider` | 新闻来源 | 见下表 |
+| 参数 | 含义 | 未指定时 | 全部取值 |
+|---|---|---|---|
+| `--market` | 市场类型 | 不限（不发送该筛选） | `stock`（股票）、`etf`（Exchange-Traded Fund，交易所交易基金）、`crypto`（加密货币）、`forex`（外汇）、`index`（指数）、`futures`（期货）、`bond`（Government bonds，国债）、`corp_bond`（Corporate bonds，公司债）、`economic`（Economy，宏观经济） |
+| `--country` | 国家 | 不限（不发送该筛选） | ISO 3166-1 两位国家代码，如 `US` `CN` `JP` `KR` `HK` `TW` `GB` `DE` `IN`（不穷举） |
+| `--sector` | 行业（TradingView 行业分类） | 不限（不发送该筛选） | `"Commercial Services"`（商业服务）、`Communications`（通信）、`"Consumer Durables"`（耐用消费品）、`"Consumer Non-Durables"`（非耐用消费品）、`"Consumer Services"`（消费者服务）、`"Distribution Services"`（分销服务）、`"Electronic Technology"`（电子科技，含半导体、硬件）、`"Energy Minerals"`（能源矿产，含石油、煤炭）、`Finance`（金融）、`Government`（政府）、`"Health Services"`（医疗服务）、`"Health Technology"`（医疗科技，含制药、医疗器械）、`"Industrial Services"`（工业服务）、`Miscellaneous`（其他）、`"Non-Energy Minerals"`（非能源矿产，含金属、采矿）、`"Process Industries"`（流程工业，含化工、材料）、`"Producer Manufacturing"`（生产制造）、`"Retail Trade"`（零售）、`"Technology Services"`（科技服务，含软件、互联网）、`Transportation`（交通运输）、`Utilities`（公用事业） |
+| `--corp` | 公司事件 | 不限（不发送该筛选） | `ipo`（Initial Public Offering，首次公开募股）、`earnings`（财报）、`earnings_calls`（财报电话会）、`dividends`（分红）、`share_buybacks`（股票回购）、`strategy_business_products`（Strategy, business, and products，战略、业务与产品）、`mergers_and_acquisitions`（并购）、`management`（管理层变动）、`insider_trading`（内部人交易）、`ownership_changes`（持股变动）、`esg`（Environmental, Social, and Governance，网页显示为"ESG and regulation"，ESG 与监管）、`recommendation`（网页显示为"Analysts"，分析师评级与观点）、`credit_ratings`（信用评级） |
+| `--econ` | 宏观类别 | 不限（不发送该筛选） | `gdp`（Gross Domestic Product，国内生产总值）、`labor`（就业与劳动力）、`prices`（物价与通胀）、`health`（网页显示为"Health"，实测以公共卫生和疫情、医疗支出与医保为主）、`money`（网页显示为"Money"，实测以央行与利率、货币政策、信贷为主）、`trade`（贸易）、`government`（实测以财政预算、赤字、政府政策为主）、`business`（实测以企业与行业景气数据为主，如钻井数）、`consumer`（消费）、`housing`（房地产）、`taxes`（税收） |
+| `--crypto` | 加密货币主题 | 不限（不发送该筛选） | `market`（Market moves，行情变动）、`etfs`（Crypto ETFs，加密货币 ETF）、`pegs_reserves_and_liquidity`（Pegs, reserves, and liquidity，稳定币锚定、储备与流动性）、`regulation`（监管）、`adoption`（采用与普及）、`technology`（技术）、`security`（安全事件）、`fundraising`（融资）、`tokenomics`（代币经济学）、`exchanges`（交易所）、`people`（人物） |
+| `--priority` | 新闻格式 | 不限（不发送该筛选） | `flash`（快讯，通常为纯标题）、`important`（重要，以 TradingView 自动内容为主）、`top_stories`（编辑精选头条）、`key_facts`（TradingView 自动生成的要点摘要，以加密货币为主） |
+| `--symbol` | 标的 | 不限（不发送该筛选） | "交易所:代码"，如 `NASDAQ:NVDA` `NYSE:TSM` `KRX:005930` `TSE:6981` `HKEX:700`（不穷举） |
+| `--lang` | 语言（单选） | `en` | `ar` `de` `en` `en_IN`（English (India)）`es` `fr` `he` `id`（印尼语）`it` `ja` `ko` `ms`（马来语）`pl` `pt` `ru` `th` `tr` `vi` `zh-Hans`（简体中文）`zh-Hant`（繁体中文） |
+| `--provider` | 新闻来源 | 不限（不发送该筛选） | 见下表 |
 
 `--provider` 的全部取值（id 后括号内为网页显示名）：
 
@@ -98,19 +98,32 @@ description: 获取并总结 TradingView 全市场新闻流（News Flow）：默
 
 另有一个不在上面列表中、但大量出现在数据里的来源：`tradingview_analyst_updates`，是 TradingView 自动生成的分析师评级短讯（"某机构维持某评级、目标价若干"）。它不能用作 `--provider` 筛选，但常用于 `--exclude-provider` 排除噪音。
 
-### 本地筛选与输出控制
+### `list` 的其他参数
 
-| 参数 | 作用 |
-|---|---|
-| `--hours N` | 只保留最近 N 小时（默认不过滤，与网页一致） |
-| `--keyword RE ...` | 只保留标题匹配任一正则的条目，忽略大小写 |
-| `--exclude-provider P ...` | 排除这些来源，按 id 或显示名匹配 |
-| `--full-only` | 只保留可读全文的条目 |
-| `--flash-only` | 只保留快讯 |
-| `--dedupe-titles` | 合并标题相同的条目，保留最新一条（默认关闭，与网页一致） |
-| `--split` | 多值筛选按值分别请求再合并，见上文"服务端规则" |
-| `--limit N` | 最多输出 N 条（默认全部） |
-| `--tz` | 显示时区，默认 `Asia/Shanghai` |
+`--preset` 和 `--split` 决定怎么发请求；其余参数在拿到服务端结果之后才处理，不影响请求本身。
+
+| 参数 | 作用 | 未指定时 |
+|---|---|---|
+| `--preset P` | 使用预设，取值见上文预设表；不能和服务端筛选参数同时使用 | 不用预设，只带语言筛选（与网页默认一致） |
+| `--split` | 多值筛选按值分别请求再合并，见上文"服务端规则" | 关闭：同一筛选项的多个值合并成一次请求 |
+| `--hours N` | 只保留最近 N 小时 | 不过滤，输出返回的全部条目（与网页一致） |
+| `--keyword RE ...` | 只保留标题匹配任一正则的条目，忽略大小写 | 不过滤 |
+| `--exclude-provider P ...` | 排除这些来源，按 id 或显示名匹配 | 不排除 |
+| `--full-only` | 只保留可读全文的条目 | 关闭：全文、预览、仅标题都保留 |
+| `--flash-only` | 只保留快讯 | 关闭 |
+| `--dedupe-titles` | 合并标题相同的条目，保留最新一条 | 关闭，同标题条目都保留（与网页一致） |
+| `--limit N` | 最多输出 N 条 | 全部输出 |
+| `--tz` | 显示时区（`list` 和 `read` 都可用） | 环境变量 `TV_NEWS_TZ`；未设置时为 `Asia/Shanghai`（GMT+8） |
+
+### `read` 参数
+
+| 参数 | 作用 | 未指定时 |
+|---|---|---|
+| 位置参数 | 一个或多个 `#N`（上一次 `list` 的序号，`#` 可省略）或文章 id | 必填 |
+| `--max-chars N` | 每篇正文的字数上限，超出部分截断并注明 | 8000 字符 |
+| `--max-stories N` | 一次最多展开几篇，超出时报错 | 5 篇 |
+| `--lang` | 请求正文时使用的语言 | `en` |
+| `--tz` | 同上 | 同上 |
 
 ## 常用命令
 
