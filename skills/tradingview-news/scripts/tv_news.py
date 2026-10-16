@@ -25,10 +25,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:  # Python < 3.9
-    ZoneInfo = None
+from zoneinfo import ZoneInfo
 
 FLOW_URL = "https://news-mediator.tradingview.com/public/news-flow/v2/news"
 META_URL = "https://news-mediator.tradingview.com/public/news-flow/v1/meta"
@@ -41,6 +38,13 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 # pagination (cursor / start_date / end_date) for every client we tested.
 PAGE_CAP = 200
 MAX_REQUESTS = 30
+# Transient failures (connection resets, 429, 5xx) are retried this many
+# times with a growing delay before a request counts as failed.
+RETRIES = 2
+DEFAULT_TZ = "Asia/Shanghai"
+# A #N reference into a list cache older than this gets a warning, since
+# another session may have overwritten the shared cache in the meantime.
+CACHE_STALE_SECS = 3600
 
 # CLI option -> news-flow filter id. Like the web page, the server ANDs
 # different filters and ORs the values of one filter, which are sent as one
@@ -79,7 +83,6 @@ PRESETS = {
 }
 
 ACCESS_LABEL = {None: "全文", "preview": "预览", "headline": "仅标题", "provider": "受限"}
-ACCESS_RANK = {None: 3, "preview": 2, "headline": 1, "provider": 1}
 
 
 class NetworkBlocked(Exception):
@@ -90,17 +93,23 @@ class ApiError(Exception):
     pass
 
 
+class _Transient(Exception):
+    """A failure worth retrying: connection reset, timeout, 429 or 5xx."""
+
+
 def log(msg):
     print(msg, file=sys.stderr)
 
 
 def get_tz(name):
-    if ZoneInfo is not None:
-        try:
-            return ZoneInfo(name)
-        except Exception:
-            pass
-    return timezone(timedelta(hours=8), "GMT+8")
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        # Without a tz database (e.g. Windows without the tzdata package) the
+        # default zone is still usable, because Shanghai has no DST.
+        if name == DEFAULT_TZ:
+            return timezone(timedelta(hours=8), "GMT+8")
+        raise ValueError(f"无法识别的时区：{name}（应为 IANA 时区名，如 America/New_York）") from None
 
 
 def tz_label(dt):
@@ -110,7 +119,9 @@ def tz_label(dt):
     return f"GMT{hours:+d}" + (f":{mins:02d}" if mins else "")
 
 
-def http_json(url, timeout=20):
+def http_json_once(url, timeout):
+    """One attempt. Returns the parsed body, or raises NetworkBlocked,
+    ApiError (permanent) or _Transient (worth retrying)."""
     req = urllib.request.Request(url, headers={
         "User-Agent": UA,
         "Origin": SITE,
@@ -126,13 +137,30 @@ def http_json(url, timeout=20):
             msg = json.loads(body).get("message", body)
         except Exception:
             msg = body
-        raise ApiError(f"HTTP {e.code}: {msg}") from None
+        err = f"HTTP {e.code}: {msg}"
+        if e.code == 429 or e.code >= 500:
+            raise _Transient(err) from None
+        raise ApiError(err) from None
     except urllib.error.URLError as e:
         reason = str(e.reason)
         if "403" in reason or "Tunnel" in reason or "Forbidden" in reason:
             host = urllib.parse.urlparse(url).hostname
             raise NetworkBlocked(host) from None
-        raise ApiError(f"network error: {reason}") from None
+        raise _Transient(f"network error: {reason}") from None
+    except (OSError, ValueError) as e:  # reset mid-read, timeout, bad JSON
+        raise _Transient(f"network error: {e}") from None
+
+
+def http_json(url, timeout=20):
+    for attempt in range(RETRIES + 1):
+        try:
+            return http_json_once(url, timeout)
+        except _Transient as e:
+            if attempt == RETRIES:
+                raise ApiError(str(e)) from None
+            delay = 1.5 * (attempt + 1)
+            log(f"  {e}；{delay:g} 秒后重试（{attempt + 1}/{RETRIES}）")
+            time.sleep(delay)
 
 
 def blocked_message(host):
@@ -214,7 +242,12 @@ def short_symbols(item, n=4):
 
 
 def fmt_short(ts, tz):
-    return datetime.fromtimestamp(ts, tz).strftime("%m-%d %H:%M")
+    # Presets like wires can reach back months, past New Year; add the year
+    # whenever it is not the current one so "12-19" is not read as upcoming.
+    dt = datetime.fromtimestamp(ts, tz)
+    if dt.year != datetime.now(tz).year:
+        return dt.strftime("%Y-%m-%d %H:%M")
+    return dt.strftime("%m-%d %H:%M")
 
 
 def fmt_long(ts, tz):
@@ -228,7 +261,11 @@ def cache_path():
 
 
 def cmd_list(args):
-    tz = get_tz(args.tz)
+    try:
+        tz = get_tz(args.tz)
+    except ValueError as e:
+        log(f"error=bad_tz {e}")
+        return 2
     now = time.time()
     since = now - args.hours * 3600 if args.hours else None
     try:
@@ -261,6 +298,8 @@ def cmd_list(args):
             notes.append(f"# 查询 {i}（{label}）失败：{e}")
             continue
         oldest = min((it["published"] for it in items), default=None)
+        # The server sometimes returns slightly fewer than PAGE_CAP items for
+        # a full page, so treat anything close to the cap as truncated.
         capped = len(items) >= PAGE_CAP - 10
         if since is None:
             span = (f"，{fmt_short(oldest, tz)} → {fmt_short(max(it['published'] for it in items), tz)}"
@@ -324,7 +363,7 @@ def cmd_list(args):
     print(f"# 合计 {total} 条：{'，'.join(detail)}{shown}；"
           f"格式：序号 时间 | 来源 | 标题 | 相关标的 | 访问级别 [| 标记]")
 
-    cache = {"created": int(now), "tz": args.tz, "items": []}
+    cache = {"created": int(now), "items": []}
     for idx, r in enumerate(rows, 1):
         pid, pname = provider_of(r)
         title = (r.get("title") or "").replace("|", "/").strip()
@@ -455,6 +494,10 @@ def resolve_refs(refs):
                         cache = json.load(f)
                 except (OSError, ValueError):
                     raise ValueError("找不到上一次 list 的结果，请先运行 list，或直接传入文章 id。")
+                age = time.time() - cache.get("created", 0)
+                if age > CACHE_STALE_SECS:
+                    log(f"warning: 上一次 list 的结果是 {age / 3600:.1f} 小时前生成的，"
+                        "缓存文件可能已被其他会话覆盖；请核对输出的标题，或重新运行 list。")
             idx = int(m.group(1))
             items = cache.get("items", [])
             if not 1 <= idx <= len(items):
@@ -466,7 +509,11 @@ def resolve_refs(refs):
 
 
 def cmd_read(args):
-    tz = get_tz(args.tz)
+    try:
+        tz = get_tz(args.tz)
+    except ValueError as e:
+        log(f"error=bad_tz {e}")
+        return 2
     try:
         refs = resolve_refs(args.refs)
     except ValueError as e:
@@ -594,11 +641,23 @@ def cmd_filters(args):
 
 # ---------------------------------------------------------------- main
 
+def positive(kind):
+    def parse(text):
+        try:
+            v = kind(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"不是有效的数字：{text}") from None
+        if v <= 0:
+            raise argparse.ArgumentTypeError(f"必须大于 0：{text}")
+        return v
+    return parse
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--tz", default=os.environ.get("TV_NEWS_TZ", "Asia/Shanghai"),
+    common.add_argument("--tz", default=os.environ.get("TV_NEWS_TZ", DEFAULT_TZ),
                         help="display time zone (default Asia/Shanghai, i.e. GMT+8)")
     common.add_argument("--lang", default="en", help="news language (default en)")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -606,7 +665,7 @@ def main(argv=None):
     pl = sub.add_parser("list", parents=[common], help="level 1: compact headline list")
     pl.add_argument("--preset", choices=sorted(PRESETS),
                     help="optional query preset; cannot be combined with filter options")
-    pl.add_argument("--hours", type=float, default=None,
+    pl.add_argument("--hours", type=positive(float), default=None,
                     help="keep only the last N hours (default: no time filter, like the web page)")
     for opt, fid in FILTER_OPTS.items():
         pl.add_argument(f"--{opt}", nargs="+", metavar="V",
@@ -620,13 +679,13 @@ def main(argv=None):
     pl.add_argument("--exclude-provider", nargs="+", metavar="P", help="drop these providers")
     pl.add_argument("--full-only", action="store_true", help="only stories readable in full")
     pl.add_argument("--flash-only", action="store_true", help="only flash (breaking) items")
-    pl.add_argument("--limit", type=int, default=0, help="max lines to print (default all)")
+    pl.add_argument("--limit", type=positive(int), default=0, help="max lines to print (default all)")
     pl.set_defaults(func=cmd_list)
 
     pr = sub.add_parser("read", parents=[common], help="level 2: story text by #index or id")
     pr.add_argument("refs", nargs="+", help="#N from the last list, or a story id")
-    pr.add_argument("--max-chars", type=int, default=8000, help="per-story text cap")
-    pr.add_argument("--max-stories", type=int, default=5, help="stories per call")
+    pr.add_argument("--max-chars", type=positive(int), default=8000, help="per-story text cap")
+    pr.add_argument("--max-stories", type=positive(int), default=5, help="stories per call")
     pr.set_defaults(func=cmd_read)
 
     pf = sub.add_parser("filters", parents=[common], help="print accepted filter values")
