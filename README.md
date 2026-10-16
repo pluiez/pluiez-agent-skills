@@ -15,7 +15,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 | PDF Region Crop | `skills/pdf-region-crop` | Render PDF pages and capture arbitrary rectangular regions (figures, tables, text fragments, titles, formulas) as high-resolution PNGs cut from the original page, with a bundled Python CLI. |
 | Paper zh Translation | `skills/paper-zh-translation` | Translate an academic paper PDF into a complete Simplified Chinese Markdown translation, plus a matching original-text Markdown transcription, with embedded figures and tables; relies on any skill that provides PDF region capture. |
-| TradingView News | `skills/tradingview-news` | Search and filter TradingView's News Flow by market, country, sector, provider or symbol: a compact headline list first, story text on demand, respecting each story's access level; bundled stdlib-only Python CLI. |
+| TradingView News | `skills/tradingview-news` | Search and filter TradingView's News Flow by market, country, sector, provider or symbol: a compact headline list first, story text on demand, with raw API permission values separate from body extraction status; bundled stdlib-only Python CLI. |
 | Verify with Citations | `skills/verify-with-citations` | Citation format for verification work: verbatim quote, author/organization attribution, Markdown-linked title with section path, and a source table past 3 sources. |
 
 ## Gemini Image CLI
@@ -63,15 +63,17 @@ Pure-documentation skill, with no scripts. It does not name a cropping skill. In
 
 ## TradingView News
 
-The TradingView News skill includes a standard-library-only Python CLI (Python 3.9+, no packages). The runtime must be able to reach `*.tradingview.com`; in Claude's cloud environment, add it under Settings → Capabilities → Allow network egress → Additional allowed domains.
+The TradingView News skill includes a Python 3.9+ standard-library CLI with no package dependencies. The runtime must be able to reach `*.tradingview.com`. Documentation and CLI-generated text use English; news content retains its source language. `--lang` controls news requests, independently of conversation language and time zone settings.
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list            # level 1: headline list, same as the web News Flow default
-python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # level 2: story text from the last list
-python3 skills/tradingview-news/scripts/tv_news.py filters         # accepted filter values
+python3 skills/tradingview-news/scripts/tv_news.py list            # headline list
+python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # selected story bodies
+python3 skills/tradingview-news/scripts/tv_news.py filters         # current English API metadata
 ```
 
-With no options, `list` matches the web News Flow page's default view: language filter only, one request, every returned item. Filters work as on the web page: different filters are ANDed and several values of one filter are ORed. The server returns at most 200 items per request and refuses pagination, even when logged in, so every list reports each query's time coverage; `--split` sends one request per filter value for longer coverage. Story text is printed only for stories whose access level allows it: preview stories get their summary, and headline-only stories get the title and a subscription notice.
+With no options, `list` sends only the news language filter and prints all returned items. Different filters use AND; multiple values of the same filter use OR. Each request has an observed cap of 200 items and the CLI does not paginate; coverage notes flag possible omissions. `--split` requests each filter-value combination separately and merges results by id. Presets such as `wires` are CLI-defined combinations of API filters.
+
+Output preserves raw `permission` values separately from the CLI's `status`. `read` extracts returned body text first and reports `status=full` regardless of permission, retaining `--max-chars` truncation and its notice. Only when no body is extracted does it fall back to `preview`, `restricted`, or `no_body`. These states do not establish a specific subscription requirement or certify source completeness. The legacy `--full-only` list option selects missing/null permission, not verified body availability. Time display still defaults to `Asia/Shanghai`, configurable via `--tz` or `TV_NEWS_TZ`.
 
 ## Verify with Citations
 

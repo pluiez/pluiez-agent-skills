@@ -15,7 +15,7 @@
 | GitHub Proxy | `skills/github-proxy` | 当 github.com 超时、连接被拒或返回空响应时，将 GitHub URL 通过 `gh-proxy.org` 转发。 |
 | PDF Region Crop | `skills/pdf-region-crop` | 渲染 PDF 页面，并从原页面截取任意矩形区域（图、表、正文片段、标题、公式）为高清 PNG，内置一个 Python CLI。 |
 | Paper zh Translation | `skills/paper-zh-translation` | 把学术论文 PDF 完整翻译成简体中文 Markdown，同时整理一份对应的原文 Markdown，并嵌入从原 PDF 截取的图表；出图依赖一个具备 PDF 区域截图能力的 skill。 |
-| TradingView News | `skills/tradingview-news` | 按市场、国家、行业、来源或标的搜索、筛选 TradingView 新闻流：先给精简标题列表，按需再读取单篇正文，并遵守每篇文章的访问级别；内置一个只用标准库的 Python CLI。 |
+| TradingView News | `skills/tradingview-news` | 按市场、国家、行业、来源或标的搜索、筛选 TradingView 新闻流：先给精简标题列表，按需再读取单篇正文，原始 `permission` 与正文解析 `status` 分开表示；内置一个只用标准库的 Python CLI。 |
 | Verify with Citations | `skills/verify-with-citations` | 核实、查证类任务的引用格式：逐字引原文、署名作者或机构、标题用 Markdown 链接并附章节层级，超过 3 项时补来源清单表。 |
 
 ## Gemini Image CLI
@@ -63,15 +63,17 @@ python skills/pdf-region-crop/scripts/pdf_regions.py --help
 
 ## TradingView News
 
-TradingView News skill 包含一个只用 Python 标准库的 CLI（Python 3.9+，无需安装任何包）。运行环境必须能访问 `*.tradingview.com`；在 Claude 云端环境中，需要在 Settings → Capabilities → Allow network egress → Additional allowed domains 里加入这个域名。
+TradingView News skill 包含一个仅使用 Python 3.9+ 标准库的 CLI，无需安装依赖包。运行环境须能访问 `*.tradingview.com`。skill 文档与工具自身的输出统一使用英文，新闻内容保留来源语言。`--lang` 只控制新闻请求语言，与对话语言、时区设置相互独立。
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list            # 第一级：标题列表，与网页 News Flow 默认状态相同
-python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # 第二级：读取上一次列表中文章的正文
-python3 skills/tradingview-news/scripts/tv_news.py filters         # 查看可用的筛选取值
+python3 skills/tradingview-news/scripts/tv_news.py list            # 标题列表
+python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # 按需读取正文
+python3 skills/tradingview-news/scripts/tv_news.py filters         # 当前英文 API metadata
 ```
 
-不带参数时，`list` 与网页 News Flow 页面的默认状态一致：只带语言筛选，发一次请求，输出返回的全部条目。筛选规则也与网页一致：不同筛选项之间是"并且"，同一筛选项的多个值之间是"或者"。服务端每次请求最多返回 200 条且不允许翻页（登录后也一样），所以每次列表都会报告每路查询的覆盖时间；加 `--split` 可按筛选值分别请求，覆盖更长时间。只有访问级别允许的文章才输出正文：预览级别只给摘要，仅标题级别只给标题和订阅提示。
+不带参数时，`list` 只发送新闻语言筛选，并输出接口返回的全部条目。不同 filter 之间使用 AND，同一 filter 的多个值使用 OR。已观察到的单次请求上限为 200 条，CLI 不执行分页，覆盖范围说明会提示可能遗漏的内容。`--split` 按每种 filter-value combination 分别请求，再按 id 合并。`wires` 等 preset 是 CLI 定义的筛选组合；API 字段、枚举、分类名称及英文 display title 保留原始形式。
+
+输出分别保留 API 原始 `permission` 和 CLI 定义的 `status`。`read` 优先解析已返回的正文，成功后输出 `status=full`，不因 `permission` 丢弃正文，仍遵循 `--max-chars` 截断规则并附加提示。只有未解析出正文时，才回退到 `preview`、`restricted` 或 `no_body`；这些状态不证明某种具体订阅要求，也不保证原文完整性。保留的 `--full-only` 参数仅筛选 `permission` 缺失或为 null 的列表条目，不验证正文是否可用。显示时区仍默认为 `Asia/Shanghai`，可用 `--tz` 或 `TV_NEWS_TZ` 修改。
 
 ## Verify with Citations
 
