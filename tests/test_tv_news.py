@@ -1,5 +1,6 @@
 """Offline regression tests for news content, metadata, and CLI semantics."""
 import contextlib
+import importlib.util
 import io
 import json
 import os
@@ -9,7 +10,10 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
-import tv_news
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "skills/tradingview-news/scripts/tv_news.py"
+spec = importlib.util.spec_from_file_location("tv_news", SCRIPT_PATH)
+tv_news = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tv_news)
 
 
 MISSING = object()

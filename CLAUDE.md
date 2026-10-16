@@ -117,7 +117,7 @@ python3 skills/tradingview-news/scripts/tv_news.py list --preset wires --hours 2
 python3 skills/tradingview-news/scripts/tv_news.py list --symbol NASDAQ:NVDA --hours 12
 python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7' --max-chars 8000
 python3 skills/tradingview-news/scripts/tv_news.py filters
-python3 -B -m unittest discover -s skills/tradingview-news/scripts -p 'test_*.py'
+python3 -B -m unittest discover -s tests -p 'test_tv_news.py'
 ```
 
 Without filters or a preset, `list` sends only the news language filter and prints every returned item. Different filters use AND; multiple values of a filter use OR. Request filters and their comma-joined values are sorted. The observed API cap is 200 items per request; the CLI does not paginate. Coverage notes flag possible omissions near the cap. `--split` requests each filter-value combination separately (maximum 30 requests) and merges by id. Presets are CLI-defined query groups, not API categories: `wires` merges all `priority=top_stories` results with `priority=important` results from Reuters and Dow Jones Newswires. Do not infer editorial or automatic production from priority labels. `--preset` cannot be combined with explicit filter options except `--lang`.
