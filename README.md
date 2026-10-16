@@ -15,7 +15,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
 | PDF Region Crop | `skills/pdf-region-crop` | Render PDF pages and capture arbitrary rectangular regions (figures, tables, text fragments, titles, formulas) as high-resolution PNGs cut from the original page, with a bundled Python CLI. |
 | Paper zh Translation | `skills/paper-zh-translation` | Translate an academic paper PDF into a complete Simplified Chinese Markdown translation, plus a matching original-text Markdown transcription, with embedded figures and tables; relies on any skill that provides PDF region capture. |
-| TradingView News | `skills/tradingview-news` | Fetch and summarize TradingView's market-wide News Flow with progressive disclosure: a compact headline list first, full stories on demand, respecting each story's access level; bundled stdlib-only Python CLI. |
+| TradingView News | `skills/tradingview-news` | Search and filter TradingView's News Flow by market, country, sector, provider or symbol: a compact headline list first, story text on demand, respecting each story's access level; bundled stdlib-only Python CLI. |
 | Verify with Citations | `skills/verify-with-citations` | Citation format for verification work: verbatim quote, author/organization attribution, Markdown-linked title with section path, and a source table past 3 sources. |
 
 ## Gemini Image CLI
@@ -66,8 +66,8 @@ Pure-documentation skill, with no scripts. It does not name a cropping skill. In
 The TradingView News skill includes a standard-library-only Python CLI (Python 3.9+, no packages). The runtime must be able to reach `*.tradingview.com`; in Claude's cloud environment, add it under Settings → Capabilities → Allow network egress → Additional allowed domains.
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list            # level 1: same feed as the web News Flow default
-python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # level 2: stories from the last list
+python3 skills/tradingview-news/scripts/tv_news.py list            # level 1: headline list, same as the web News Flow default
+python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # level 2: story text from the last list
 python3 skills/tradingview-news/scripts/tv_news.py filters         # accepted filter values
 ```
 

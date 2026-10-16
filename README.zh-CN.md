@@ -15,7 +15,7 @@
 | GitHub Proxy | `skills/github-proxy` | 当 github.com 超时、连接被拒或返回空响应时，将 GitHub URL 通过 `gh-proxy.org` 转发。 |
 | PDF Region Crop | `skills/pdf-region-crop` | 渲染 PDF 页面，并从原页面截取任意矩形区域（图、表、正文片段、标题、公式）为高清 PNG，内置一个 Python CLI。 |
 | Paper zh Translation | `skills/paper-zh-translation` | 把学术论文 PDF 完整翻译成简体中文 Markdown，同时整理一份对应的原文 Markdown，并嵌入从原 PDF 截取的图表；出图依赖一个具备 PDF 区域截图能力的 skill。 |
-| TradingView News | `skills/tradingview-news` | 按渐进式披露获取并总结 TradingView 全市场新闻流：先给精简标题列表，按需再取单篇全文，并遵守每篇文章的访问级别；内置一个只用标准库的 Python CLI。 |
+| TradingView News | `skills/tradingview-news` | 按市场、国家、行业、来源或标的搜索、筛选 TradingView 新闻流：先给精简标题列表，按需再读取单篇正文，并遵守每篇文章的访问级别；内置一个只用标准库的 Python CLI。 |
 | Verify with Citations | `skills/verify-with-citations` | 核实、查证类任务的引用格式：逐字引原文、署名作者或机构、标题用 Markdown 链接并附章节层级，超过 3 项时补来源清单表。 |
 
 ## Gemini Image CLI
@@ -66,8 +66,8 @@ python skills/pdf-region-crop/scripts/pdf_regions.py --help
 TradingView News skill 包含一个只用 Python 标准库的 CLI（Python 3.9+，无需安装任何包）。运行环境必须能访问 `*.tradingview.com`；在 Claude 云端环境中，需要在 Settings → Capabilities → Allow network egress → Additional allowed domains 里加入这个域名。
 
 ```bash
-python3 skills/tradingview-news/scripts/tv_news.py list            # 第一级：与网页 News Flow 默认状态相同的新闻流
-python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # 第二级：展开上一次列表中的文章
+python3 skills/tradingview-news/scripts/tv_news.py list            # 第一级：标题列表，与网页 News Flow 默认状态相同
+python3 skills/tradingview-news/scripts/tv_news.py read '#3' '#7'  # 第二级：读取上一次列表中文章的正文
 python3 skills/tradingview-news/scripts/tv_news.py filters         # 查看可用的筛选取值
 ```
 
