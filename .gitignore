@@ -7,3 +7,5 @@ generated-image-*.jpeg
 generated-image-*.webp
 out/
 bench/
+__pycache__/
+*.pyc
