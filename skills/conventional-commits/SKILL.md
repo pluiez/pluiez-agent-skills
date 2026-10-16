@@ -1,6 +1,6 @@
 ---
 name: conventional-commits
-description: Must use when writing or amending a git commit message. Follows Conventional Commits 1.0.0. Mandatory rule: never add an AI-attribution trailer unless explicitly asked.
+description: Must use when writing or amending a git commit message. Follows Conventional Commits 1.0.0. Never add an AI-attribution trailer unless explicitly asked.
 ---
 
 # Conventional Commits 1.0.0
