@@ -10,6 +10,7 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 
 | Skill | Path | Description |
 | --- | --- | --- |
+| CNBC Quotes | `skills/cnbc-quotes` | Fetch CNBC quotes and grouped market snapshots with per-symbol errors, source timestamps, age checks where the source gives a full timestamp, and separate regular/extended-session values; bundled stdlib-only Python CLI. |
 | Conventional Commits | `skills/conventional-commits` | Conventional Commits 1.0.0 reference for writing or amending git commit messages. |
 | Gemini Image CLI | `skills/gemini-image-cli` | Generate and edit images through Gemini-compatible endpoints with a bundled Bash CLI. |
 | GitHub Proxy | `skills/github-proxy` | Route GitHub URLs through `gh-proxy.org` when github.com is timing out, refusing connections, or returning empty responses. |
@@ -17,6 +18,24 @@ This repository is intentionally runtime-neutral. Different agents and editors l
 | Paper zh Translation | `skills/paper-zh-translation` | Translate an academic paper PDF into a complete Simplified Chinese Markdown translation, plus a matching original-text Markdown transcription, with embedded figures and tables; relies on any skill that provides PDF region capture. |
 | TradingView News | `skills/tradingview-news` | Search and filter TradingView's News Flow by market, country, sector, provider or symbol: a compact headline list first, story text on demand, with raw API permission values separate from body extraction status; bundled stdlib-only Python CLI. |
 | Verify with Citations | `skills/verify-with-citations` | Citation format for verification work: verbatim quote, author/organization attribution, Markdown-linked title with section path, and a source table past 3 sources. |
+
+## CNBC Quotes
+
+The CNBC Quotes skill provides a self-contained Python 3.9+ standard-library CLI for market data, not news articles. It needs network access to `quote.cnbc.com`, but no API key or package installation.
+
+```bash
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py snapshot
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py snapshot --preset asia
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py quote AAPL .SPX US10Y '@GC.1' --json
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py presets
+python3 -B -m unittest discover -s tests -p 'test_cnbc_quotes.py'
+```
+
+Presets are CLI-defined symbol groups, not CNBC categories. Custom requests use CNBC symbols, for example `700-HK` and `600519-CN` rather than `0700.HK` or `600519.SS`; TradingView or other providers' identifiers are not automatically interchangeable. Missing and unsupported symbols are reported individually rather than silently discarded.
+
+The output preserves provider timestamps, currencies, instrument types, `realTime`, `curmktstatus`, and regular versus extended-session quotes. Date-only or ambiguous times are not turned into invented close times. A configurable age check flags old data without claiming knowledge of exchange calendars or market holidays; a provider real-time flag does not guarantee freshness. Many quotes carry only a date (observed for indices and U.S. stocks outside trading hours), so they have no age, and futures can carry timestamps later than the fetch time. Futures retain their contract names. Use `--tz` or `CNBC_QUOTES_TZ` to change the default `Asia/Shanghai` display zone.
+
+Documentation and CLI-generated text use English; the caller chooses the conversation language. See `skills/cnbc-quotes/references/quotes.md` for endpoint fields, observed symbols, and data limitations. The website quote service can change or become unavailable; this is not a promise of an officially supported API or exchange-verified real-time data.
 
 ## Gemini Image CLI
 

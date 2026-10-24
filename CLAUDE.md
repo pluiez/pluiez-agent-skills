@@ -29,6 +29,28 @@ Each skill lives under `skills/<skill-name>/` and contains:
 - Environment variables are used for secrets and endpoint configuration. Default values must be safe to use in local-only scenarios.
 - For security-sensitive skills, document the security model and key isolation tradeoffs explicitly.
 
+## cnbc-quotes Skill
+
+Fetch CNBC market quotes and cross-market snapshots (stocks, indices, Treasury yields, FX, commodity futures, crypto) using a Python 3.9+ standard-library CLI. Market data only, not news. Skill documentation, comments, and CLI-generated output use English; preserve CNBC symbols, instrument/contract names, and enum values. The caller chooses the conversation language.
+
+Use the bundled script for retrieval. It calls `quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol`, an observed website service rather than a supported public API, with no API key. Report retrieval errors and policy blocks rather than switching to another client, proxy, or browser.
+
+```bash
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py snapshot
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py snapshot --preset asia --json
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py quote AAPL .SPX US10Y '@GC.1' --json
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py presets
+python3 -B -m unittest discover -s tests -p 'test_cnbc_quotes.py'
+```
+
+Presets (`global`, `us`, `rates`, `commodities`, `asia`, `crypto`) are CLI-defined symbol groups, not CNBC categories; `presets` runs offline. `quote` takes exact, case-sensitive CNBC symbols (e.g. `700-HK`, `600519-CN`; other vendors' formats such as `0700.HK` do not carry over), space- or comma-separated, deduplicated in first-seen order, with at most 50 unique symbols as a client guard. A returned quote matches only the exact requested symbol, never an alias or response position. Missing, duplicate, nonzero-code, and invalid-price quotes are per-symbol errors that never drop other results.
+
+Each quote keeps the top-level `regular` block and an optional `extended` block (from `ExtendedMktQuote`) with separate prices, changes, and times; never splice one into the other. Numbers are Decimal strings. A `BOND` whose `last` ends in `%` is a yield, and its `change_bp` (change × 100) is distinct from relative `change_pct`. Times with an explicit offset get a converted time, age, and `stale`/`future` flags against `--max-age-minutes` (default 60). Date-only, naive, and unparseable times stay unconverted with null age. Outside trading hours, indices and U.S. stocks were observed with date-only times, and futures with times later than the fetch time. `iso_text` rewrites `Z`, `+HHMM` offsets, and fraction lengths so `datetime.fromisoformat` accepts them before Python 3.11. Age checks are not market-hours validation, and `realTime`/`curmktstatus` are provider flags only. `--json` keeps all provider fields under `raw`.
+
+`CNBC_QUOTES_TZ` sets the display time zone (default `Asia/Shanghai`, falling back to fixed UTC+08:00 without a time-zone database); `--tz` overrides it. `--timeout` (default 20 seconds) applies per attempt. Transient network errors, malformed HTTP responses, HTTP 429/5xx, and invalid JSON are retried twice with backoff. Exit codes: 0 every requested quote usable (stale/future/unknown times stay flagged), 1 request/schema failure or any per-symbol error, 2 invalid arguments (checked before network access), 3 network blocked (an HTTP 403/451 refusal may come from runtime policy or the provider/CDN). Results use stdout; progress and retry diagnostics use stderr.
+
+Read `skills/cnbc-quotes/references/quotes.md` only for symbol meanings, structured output fields, time/session interpretation, source caveats, or when troubleshooting or modifying the client.
+
 ## conventional-commits Skill
 
 Pure-documentation skill (no `scripts/`, no `references/`). Spec reference for writing or amending git commit messages in this repo.

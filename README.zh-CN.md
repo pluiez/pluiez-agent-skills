@@ -10,6 +10,7 @@
 
 | Skill | 路径 | 说明 |
 | --- | --- | --- |
+| CNBC Quotes | `skills/cnbc-quotes` | 查询 CNBC 行情及分组市场快照，保留单标的错误、来源时间、来源给出完整时间时的报价年龄检查，以及独立的常规/盘前盘后行情；内置仅使用标准库的 Python CLI。 |
 | Conventional Commits | `skills/conventional-commits` | 编写或修改 git commit message 时遵循的 Conventional Commits 1.0.0 规范参考。 |
 | Gemini Image CLI | `skills/gemini-image-cli` | 通过 Gemini-compatible endpoint 生成和编辑图像，内置一个 Bash CLI。 |
 | GitHub Proxy | `skills/github-proxy` | 当 github.com 超时、连接被拒或返回空响应时，将 GitHub URL 通过 `gh-proxy.org` 转发。 |
@@ -17,6 +18,24 @@
 | Paper zh Translation | `skills/paper-zh-translation` | 把学术论文 PDF 完整翻译成简体中文 Markdown，同时整理一份对应的原文 Markdown，并嵌入从原 PDF 截取的图表；出图依赖一个具备 PDF 区域截图能力的 skill。 |
 | TradingView News | `skills/tradingview-news` | 按市场、国家、行业、来源或标的搜索、筛选 TradingView 新闻流：先给精简标题列表，按需再读取单篇正文，原始 `permission` 与正文解析 `status` 分开表示；内置一个只用标准库的 Python CLI。 |
 | Verify with Citations | `skills/verify-with-citations` | 核实、查证类任务的引用格式：逐字引原文、署名作者或机构、标题用 Markdown 链接并附章节层级，超过 3 项时补来源清单表。 |
+
+## CNBC Quotes
+
+CNBC Quotes skill 提供自包含的 Python 3.9+ 标准库 CLI，采集行情而不是新闻正文。运行环境需要能访问 `quote.cnbc.com`，不需要 API key 或安装依赖包。
+
+```bash
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py snapshot
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py snapshot --preset asia
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py quote AAPL .SPX US10Y '@GC.1' --json
+python3 skills/cnbc-quotes/scripts/cnbc_quotes.py presets
+python3 -B -m unittest discover -s tests -p 'test_cnbc_quotes.py'
+```
+
+预设是 CLI 定义的标的分组，不是 CNBC 的官方分类。自定义查询使用 CNBC 代码（例如 `700-HK`、`600519-CN`，而不是 `0700.HK`、`600519.SS`），不能直接套用 TradingView 或其他行情商的代码。缺失或不支持的标的会逐项报告，不会静默丢弃。
+
+输出保留来源时间、币种、标的类型、`realTime`、`curmktstatus`，并将常规行情与盘前盘后行情分开。仅日期或含义不明确的时间不会被补成虚构的收盘时间。可配置的报价年龄检查只提示数据是否较旧，不推断交易所日历或休市状态；来源声称实时也不等于报价足够新鲜。很多报价只有日期（非交易时段实测，指数和美股都是如此），无法计算报价年龄；期货的报价时间也可能晚于抓取时间。期货保留实际合约名称。显示时区默认 `Asia/Shanghai`，可用 `--tz` 或 `CNBC_QUOTES_TZ` 修改。
+
+skill 文档与 CLI 自身的输出使用英文，对话语言由调用方决定。接口字段、已观察到的代码和数据限制见 `skills/cnbc-quotes/references/quotes.md`。该网站行情服务可能变化或不可用，不保证它是官方承诺支持的 API，也不将其视为交易所认证的实时行情。
 
 ## Gemini Image CLI
 
